@@ -1,0 +1,336 @@
+/* Mobile-first screen — Výlet po okolí / výškový profil */
+
+:root {
+  --primary: #011e39;
+  --primary-60: rgba(1, 30, 57, 0.6);
+  --primary-08: rgba(1, 30, 57, 0.08);
+  --map-blue: #b8d4e8;
+  --route: #1a6cff;
+  --shadow-map-btn:
+    0 4px 5px rgba(0, 0, 0, 0.14),
+    0 1px 10px rgba(0, 0, 0, 0.12),
+    0 2px 4px rgba(0, 0, 0, 0.2);
+  --shadow-sheet:
+    0 6px 10px rgba(0, 0, 0, 0.14),
+    0 1px 18px rgba(0, 0, 0, 0.12),
+    0 3px 5px rgba(0, 0, 0, 0.2);
+  --font-sans: "Roboto", system-ui, sans-serif;
+  --font-display: "SF Pro Display", "Roboto", system-ui, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  min-height: 100dvh;
+  font-family: var(--font-sans);
+  background: #000;
+  color: var(--primary);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.screen {
+  position: relative;
+  width: 100%;
+  max-width: 390px;
+  margin: 0 auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: #e8eef3;
+}
+
+/* Map block */
+.map-area {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, #d4e8f7 0%, #e8f0e5 45%, #f0e8dc 100%);
+  background-image:
+    radial-gradient(ellipse 120% 80% at 30% 40%, rgba(180, 200, 180, 0.35) 0%, transparent 50%),
+    radial-gradient(ellipse 100% 60% at 70% 60%, rgba(200, 210, 220, 0.4) 0%, transparent 45%),
+    linear-gradient(180deg, #c8dce8 0%, #dde8d8 50%, #e8ddd0 100%);
+}
+
+.map-route {
+  position: absolute;
+  inset: 8% 4% 38% 4%;
+  pointer-events: none;
+}
+
+.map-route svg {
+  width: 100%;
+  height: 100%;
+}
+
+.scale-bar {
+  position: absolute;
+  top: 56px;
+  right: 16px;
+  font-size: 10px;
+  color: var(--primary-60);
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.scale-bar__line {
+  width: 72px;
+  height: 3px;
+  background: var(--primary);
+  margin-top: 2px;
+  border-radius: 1px;
+}
+
+.map-controls {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-58%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.map-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 44px;
+  border: none;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: var(--shadow-map-btn);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+  color: var(--primary);
+}
+
+.map-btn svg {
+  width: 24px;
+  height: 24px;
+}
+
+.user-dot {
+  position: absolute;
+  right: 20px;
+  bottom: 42%;
+  width: 26px;
+  height: 26px;
+}
+
+.user-dot svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Bottom sheet */
+.bottom-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  min-height: 283px;
+  padding: 24px 24px calc(24px + env(safe-area-inset-bottom, 0));
+  background: #fff;
+  border-radius: 28px 28px 0 0;
+  box-shadow: var(--shadow-sheet);
+  touch-action: pan-y;
+}
+
+.sheet-header {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-right: 88px;
+}
+
+.sheet-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--primary);
+}
+
+.sheet-sub {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--primary);
+}
+
+.sheet-actions {
+  position: absolute;
+  top: 14px;
+  right: 15px;
+  display: flex;
+  gap: 16px;
+}
+
+.sheet-icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 52px;
+  border: none;
+  background: var(--primary-08);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+  color: var(--primary);
+}
+
+.sheet-icon-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+  margin-top: 22px;
+  max-width: 345px;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 16px;
+  line-height: 22px;
+  color: var(--primary);
+}
+
+.info-item svg {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+/* Elevation profile */
+.profile-wrap {
+  margin-top: 8px;
+  width: 100%;
+  max-width: 345px;
+  height: 125px;
+  position: relative;
+}
+
+.profile-y-labels {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 24px;
+  width: 44px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--primary-60);
+}
+
+.profile-chart {
+  position: absolute;
+  left: 44px;
+  right: 0;
+  top: 0;
+  height: 90px;
+  touch-action: none;
+  cursor: grab;
+}
+
+.profile-chart:active {
+  cursor: grabbing;
+}
+
+.profile-chart svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.surface-bar {
+  position: absolute;
+  left: 44px;
+  right: 0;
+  bottom: 22px;
+  height: 7px;
+  border-radius: 2px;
+  overflow: hidden;
+  display: flex;
+}
+
+.surface-bar span {
+  flex: 1;
+  min-width: 4px;
+}
+
+.surface-bar span:nth-child(odd) {
+  background: #c4a574;
+}
+
+.surface-bar span:nth-child(even) {
+  background: #8b7355;
+}
+
+.profile-x-labels {
+  position: absolute;
+  left: 44px;
+  right: 0;
+  bottom: 0;
+  height: 24px;
+  display: flex;
+  justify-content: space-between;
+  padding-left: 56px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--primary-60);
+}
+
+.profile-x-labels span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.profile-x-labels span::before {
+  content: "";
+  width: 1px;
+  height: 8px;
+  background: var(--primary-60);
+  margin-bottom: 2px;
+}
+
+.home-indicator {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 139px;
+  height: 4px;
+  background: var(--primary);
+  border-radius: 8px;
+  opacity: 0.9;
+}
+
+@media (min-width: 391px) {
+  .screen {
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+  }
+}

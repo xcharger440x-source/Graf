@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="cs">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#011e39" />
+    <title>Výškový profil</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="screen">
+      <div class="map-area" aria-hidden="true">
+        <div class="scale-bar">
+          <span>0</span>
+          <div class="scale-bar__line"></div>
+          <span>50 km</span>
+        </div>
+
+        <div class="map-route"></div>
+
+        <div class="map-controls">
+          <button type="button" class="map-btn" aria-label="Vrstvy mapy">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M12 3L3 8l9 5 9-5-9-5z" />
+              <path d="M3 12l9 5 9-5" />
+              <path d="M3 16l9 5 9-5" />
+            </svg>
+          </button>
+          <button type="button" class="map-btn" aria-label="Kompas a poloha">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="12" cy="12" r="9" />
+              <polygon points="12,6 14,14 12,12 10,14" fill="currentColor" stroke="none" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="user-dot" aria-hidden="true">
+          <svg viewBox="0 0 26 26" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="13" cy="13" r="8" fill="#1a6cff" stroke="#fff" stroke-width="3" />
+          </svg>
+        </div>
+      </div>
+
+      <section class="bottom-sheet" aria-label="Statistiky trasy">
+        <div class="sheet-actions">
+          <button type="button" class="sheet-icon-btn" aria-label="Rozšířit">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v6H2V5h6zm8 0v6h6V5h-6zM8 19v-6H2v6h6zm8 0v-6h6v6h-6z" />
+            </svg>
+          </button>
+          <button type="button" class="sheet-icon-btn" aria-label="Zavřít">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="sheet-header">
+          <h1 class="sheet-title">150 km</h1>
+          <p class="sheet-sub">12:45 h</p>
+        </div>
+
+        <div class="info-grid">
+          <div class="info-item">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M7 14l5-8 5 8H7z" />
+            </svg>
+            <span>1600 m n.m.</span>
+          </div>
+          <div class="info-item">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M7 10l5 8 5-8H7z" />
+            </svg>
+            <span>100 m n.m.</span>
+          </div>
+          <div class="info-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 16l4-6 4 5 4-9 4 6" />
+            </svg>
+            <span>5000 m</span>
+          </div>
+          <div class="info-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 8l4 6 4-5 4 9 4-6" />
+            </svg>
+            <span>3600 m</span>
+          </div>
+        </div>
+
+        <div class="profile-wrap">
+          <div class="profile-y-labels">
+            <span>1600 m</span>
+            <span>850 m</span>
+            <span>100 m</span>
+          </div>
+          <div class="profile-chart" role="img" aria-label="Výškový profil trasy, přibližitelný gestem"></div>
+          <div class="surface-bar" aria-hidden="true"></div>
+          <div class="profile-x-labels">
+            <span>0 km</span>
+            <span>75 km</span>
+            <span>150 km</span>
+          </div>
+        </div>
+
+        <div class="home-indicator" aria-hidden="true"></div>
+      </section>
+    </div>
+    <script src="route-data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
