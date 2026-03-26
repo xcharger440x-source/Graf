@@ -5,6 +5,9 @@
   const MAP_VB = { w: 360, h: 400 };
   const CHART_W = 1500;
   const CHART_H = 100;
+  /** Délka čárky a mezery mřížky v pixelech (konstantní při zoomu). */
+  const GRID_DASH_PX = 3;
+  const GRID_GAP_PX = 5;
 
   const COL = {
     neutral: "#1a6cff",
@@ -12,9 +15,9 @@
     steepUp: "#e53935",
     medDown: "#fb8c00",
     fill: "rgba(26,108,255,0.18)",
-    /* Horizontály osy (Figma vector2/3) */
-    gridH: "rgba(1, 30, 57, 0.12)",
-    gridHDash: "2 5",
+    /* Horizontály osy Y — #011E39, sytější než dřív */
+    gridH: "#011E39",
+    gridHOpacity: "0.26",
   };
 
   const pinMap = `
@@ -137,11 +140,9 @@
     }
     fillD += ` L ${xs(n - 1).toFixed(2)} ${CHART_H} Z`;
 
-    /* Tři horizontály — horní dvě čárkované (jako Figma), spodní souvislá */
-    const yGrid = [0, CHART_H / 2, CHART_H].map((gy, idx) => {
-      const dash =
-        idx === 2 ? "" : ` stroke-dasharray="${COL.gridHDash}"`;
-      return `<line x1="0" y1="${gy}" x2="${CHART_W}" y2="${gy}" stroke="${COL.gridH}" stroke-width="0.5" stroke-linecap="round" opacity="0.9"${dash}/>`;
+    /* Tři horizontály — stroke-dasharray doplní updateGridLineDash (px konstantní při zoomu) */
+    const yGrid = [0, CHART_H / 2, CHART_H].map((gy) => {
+      return `<line class="chart-grid-line" x1="0" y1="${gy}" x2="${CHART_W}" y2="${gy}" stroke="${COL.gridH}" stroke-opacity="${COL.gridHOpacity}" stroke-width="0.75" stroke-linecap="round"/>`;
     });
 
     let stopG = "";
@@ -220,6 +221,22 @@
     });
   }
 
+  /** Čárkování horizontál v konstantních pixelech při jakémkoli viewBoxu. */
+  function updateGridLineDash(svgEl) {
+    if (!svgEl) return;
+    const vb = svgEl.viewBox && svgEl.viewBox.baseVal;
+    if (!vb || vb.width < 1) return;
+    const rect = svgEl.getBoundingClientRect();
+    if (rect.width < 1) return;
+    const sx = rect.width / vb.width;
+    const dashU = GRID_DASH_PX / sx;
+    const gapU = GRID_GAP_PX / sx;
+    const pattern = `${dashU} ${gapU}`;
+    svgEl.querySelectorAll(".chart-grid-line").forEach((el) => {
+      el.setAttribute("stroke-dasharray", pattern);
+    });
+  }
+
   /** Kompensuje preserveAspectRatio="none" — špendlíky zůstanou kruhové při libovolném zoomu. */
   function updateChartPinTransforms(svgEl) {
     if (!svgEl) return;
@@ -249,6 +266,7 @@
       svgEl.setAttribute("viewBox", `${viewX} 0 ${viewW} ${CHART_H}`);
       updateXLabels();
       updateChartPinTransforms(svgEl);
+      updateGridLineDash(svgEl);
     }
 
     function clientToWorldX(clientX, rect) {
@@ -368,9 +386,12 @@
       if (!xLabelEl) return;
       const km0 = (viewX / CHART_W) * RD.ROUTE_KM;
       const km1 = ((viewX + viewW) / CHART_W) * RD.ROUTE_KM;
-      const mid = (km0 + km1) / 2;
-      const fmt = (k) => `${k.toFixed(k >= 100 ? 0 : 1)} km`;
-      xLabelEl.innerHTML = `<span>${fmt(km0)}</span><span>${fmt(mid)}</span><span>${fmt(km1)}</span>`;
+      const L = km1 - km0;
+      /* Čísla = konce třetin viditelného úseku (0 km je pod osou Y, ne u první čárky). */
+      const t1 = km0 + L / 3;
+      const t2 = km0 + (2 * L) / 3;
+      const fmt = (k) => `${Math.round(k).toLocaleString("cs-CZ")} km`;
+      xLabelEl.innerHTML = `<span>${fmt(t1)}</span><span>${fmt(t2)}</span><span>${fmt(km1)}</span>`;
     }
 
     apply();
@@ -384,30 +405,14 @@
   const chartSvg = document.getElementById("elevationChart");
   initChartZoom(chartSvg);
   if (chartHost && typeof ResizeObserver !== "undefined") {
-    const ro = new ResizeObserver(() => updateChartPinTransforms(chartSvg));
+    const ro = new ResizeObserver(() => {
+      updateChartPinTransforms(chartSvg);
+      updateGridLineDash(chartSvg);
+    });
     ro.observe(chartHost);
   }
 
   document.querySelector(".surface-bar").innerHTML = buildSurfaceBar();
   updateStats();
   updateYLabels();
-
-  function segmentBadgeNumber(routeData, t) {
-    const { kinds } = routeData;
-    if (!kinds.length) return 1;
-    const i = Math.min(kinds.length - 1, Math.max(0, Math.floor(t * (kinds.length - 1))));
-    let seg = 1;
-    for (let j = 1; j <= i; j++) {
-      if (kinds[j] !== kinds[j - 1]) seg++;
-    }
-    return Math.min(99, seg);
-  }
-
-  const wrap = document.querySelector(".profile-wrap");
-  const badgeEl = document.querySelector(".profile-segment-badge");
-  if (wrap && badgeEl) {
-    const t = 0.38;
-    wrap.style.setProperty("--profile-badge-t", String(t));
-    badgeEl.textContent = String(segmentBadgeNumber(route, t));
-  }
 })();

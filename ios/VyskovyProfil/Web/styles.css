@@ -260,28 +260,16 @@ body {
   display: block;
   text-align: left;
   white-space: nowrap;
+  /* Miniaturní bílý obrys kvůli čitelnosti přes graf */
   text-shadow:
-    0 0 8px rgba(255, 255, 255, 0.95),
-    0 0 2px rgba(255, 255, 255, 0.9);
-}
-
-.profile-segment-badge {
-  position: absolute;
-  top: 0;
-  z-index: 4;
-  width: 18px;
-  height: 18px;
-  border-radius: 40px;
-  background: var(--primary);
-  color: #fff;
-  font-family: var(--font-sans);
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 18px;
-  text-align: center;
-  pointer-events: none;
-  transform: translateX(-50%);
-  left: calc(56px + var(--profile-badge-t, 0.38) * (100% - 56px));
+    -0.5px 0 0 #fff,
+    0.5px 0 0 #fff,
+    0 -0.5px 0 #fff,
+    0 0.5px 0 #fff,
+    -0.5px -0.5px 0 #fff,
+    0.5px -0.5px 0 #fff,
+    -0.5px 0.5px 0 #fff,
+    0.5px 0.5px 0 #fff;
 }
 
 .profile-chart {
