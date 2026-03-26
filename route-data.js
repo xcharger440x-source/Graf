@@ -1,6 +1,7 @@
 /**
  * Synthetic route: 150 km, elevation profile with gradient highlights,
- * 40 stops (10 clustered). Stats target: +5000 m / −3600 m, min 100 m, max 1600 m.
+ * 40 stops (10 clustered). Cílové kumulativní stoupání/klesání (před normalizací výšek)
+ * škálují tvar profilu; v UI se zobrazí skutečné součty po normalizaci na min/max.
  */
 (function (global) {
   const ROUTE_KM = 150;
@@ -8,8 +9,9 @@
   const STEP_KM = ROUTE_KM / (N - 1);
   const STEP_M = STEP_KM * 1000;
 
-  const TARGET_ASCENT = 5000;
-  const TARGET_DESCENT = 3600;
+  /** Kumulativní stoupání / klesání pro škálování tvaru (realistický řád pro ~150 km výlet). */
+  const TARGET_ASCENT = 4400;
+  const TARGET_DESCENT = 4200;
   const ELEV_MIN = 100;
   const ELEV_MAX = 1600;
   /** Horní mez osy Y v grafu = nejvyšší bod trasy + padding (viditelné kolečko u maxima). */
@@ -35,10 +37,13 @@
     return out;
   }
 
+  const MAX_GRADE_PCT = 13;
+
+  /** Mírné stoupání ~6 %, prudké do 13 %, klesání do −13 % (oranžová zóna). */
   function gradeToKind(grade) {
-    if (grade > 0 && Math.abs(grade - 6) <= 2.2) return "easyUp";
-    if (grade > 0 && Math.abs(grade - 15) <= 3) return "steepUp";
-    if (grade < 0 && Math.abs(grade - -10) <= 2.5) return "medDown";
+    if (grade > 0 && Math.abs(grade - 6) <= 2.5) return "easyUp";
+    if (grade > 0 && grade >= 8 && grade <= MAX_GRADE_PCT + 0.01) return "steepUp";
+    if (grade < 0 && grade >= -(MAX_GRADE_PCT + 0.01) && grade <= -6) return "medDown";
     return "neutral";
   }
 
@@ -72,11 +77,11 @@
     const idx = (km) => Math.min(m - 1, Math.max(0, Math.round((km / ROUTE_KM) * (N - 1))));
 
     setSegment(idx(5), 35, 6, "easyUp");
-    setSegment(idx(28), 18, 15, "steepUp");
-    setSegment(idx(52), 28, -10, "medDown");
+    setSegment(idx(28), 18, 13, "steepUp");
+    setSegment(idx(52), 28, -11, "medDown");
     setSegment(idx(88), 40, 6, "easyUp");
-    setSegment(idx(118), 12, 15, "steepUp");
-    setSegment(idx(132), 22, -10, "medDown");
+    setSegment(idx(118), 12, 13, "steepUp");
+    setSegment(idx(132), 22, -11, "medDown");
 
     let posSum = 0;
     let negSum = 0;
@@ -89,6 +94,13 @@
     for (let i = 0; i < m; i++) {
       if (diff[i] > 0) diff[i] *= sp;
       else diff[i] *= sn;
+    }
+
+    /** Tvrdý strop sklonu: sp/sn jinak rozfouká nominální % (např. 13 % → 36 %). */
+    const maxDh = (MAX_GRADE_PCT / 100) * STEP_M;
+    for (let i = 0; i < m; i++) {
+      if (diff[i] > maxDh) diff[i] = maxDh;
+      if (diff[i] < -maxDh) diff[i] = -maxDh;
     }
 
     /** @type {number[]} */
@@ -105,8 +117,32 @@
       if (elev[i] > hi) hi = elev[i];
     }
     const span = hi - lo;
-    for (let i = 0; i < N; i++) {
-      elev[i] = ELEV_MIN + ((elev[i] - lo) / span) * (ELEV_MAX - ELEV_MIN);
+    let maxG = 0;
+    for (let i = 0; i < m; i++) {
+      const g = Math.abs((diff[i] / STEP_M) * 100);
+      if (g > maxG) maxG = g;
+    }
+    if (span < 1e-9) {
+      const mid = (ELEV_MIN + ELEV_MAX) / 2;
+      for (let i = 0; i < N; i++) elev[i] = mid;
+    } else {
+      const K_target = (ELEV_MAX - ELEV_MIN) / span;
+      const K_cap = maxG > 1e-9 ? MAX_GRADE_PCT / maxG : K_target;
+      const K = Math.min(K_target, K_cap);
+      for (let i = 0; i < N; i++) {
+        elev[i] = ELEV_MIN + (elev[i] - lo) * K;
+      }
+    }
+
+    /** Jistota: žádný segment nepřekročí ±13 % (násobení/normalizace může kvůli floatům ujet). */
+    {
+      const maxDelta = (MAX_GRADE_PCT / 100) * STEP_M;
+      for (let i = 0; i < m; i++) {
+        let d = elev[i + 1] - elev[i];
+        if (d > maxDelta) d = maxDelta;
+        else if (d < -maxDelta) d = -maxDelta;
+        elev[i + 1] = elev[i] + d;
+      }
     }
 
     const distKm = [];
