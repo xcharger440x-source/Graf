@@ -313,7 +313,42 @@ body {
   user-select: none;
 }
 
-.info-scrub-row--surface,
+.info-scrub-row--surface {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 17px;
+  min-height: 17px;
+  max-height: 17px;
+  color: var(--primary);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.info-scrub-surface-icon {
+  display: none;
+  flex-shrink: 0;
+  line-height: 0;
+}
+
+.info-scrub-row--surface--unpaved .info-scrub-surface-icon--unpaved {
+  display: inline-flex;
+}
+
+.info-scrub-row--surface--paved .info-scrub-surface-icon--paved {
+  display: inline-flex;
+}
+
+.info-scrub-surface-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .info-scrub-row--way {
   margin: 0;
   padding: 0;

@@ -413,7 +413,8 @@
       const eEl = scrub?.querySelector(".info-scrub-elev");
       const gEl = scrub?.querySelector(".info-scrub-grade");
       const gradeWrap = scrub?.querySelector(".info-scrub-grade-wrap");
-      const sEl = scrub?.querySelector(".info-scrub-row--surface");
+      const sRow = scrub?.querySelector(".info-scrub-row--surface");
+      const sText = scrub?.querySelector(".info-scrub-surface-text");
       const wEl = scrub?.querySelector(".info-scrub-row--way");
       const { surface, way } = surfaceWayAtKm(sample.km);
       if (tEl) tEl.textContent = fmtHoursFromKm(sample.km);
@@ -425,7 +426,11 @@
         if (sample.kind === "steepUp") gradeWrap.classList.add("info-scrub-grade-wrap--steep-up");
         else if (sample.kind === "medDown") gradeWrap.classList.add("info-scrub-grade-wrap--med-down");
       }
-      if (sEl) sEl.textContent = surface;
+      if (sText) sText.textContent = surface;
+      if (sRow) {
+        sRow.classList.toggle("info-scrub-row--surface--unpaved", surface === SURFACE_UNPAVED);
+        sRow.classList.toggle("info-scrub-row--surface--paved", surface === SURFACE_PAVED);
+      }
       if (wEl) wEl.textContent = way;
     }
 
