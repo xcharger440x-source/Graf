@@ -53,6 +53,58 @@
     return `${Math.round(n).toLocaleString("cs-CZ")} km`;
   }
 
+  function fmtElev(m) {
+    return `${Math.round(m).toLocaleString("cs-CZ")} m n.m.`;
+  }
+
+  /** Výška a km v bodě podél trasy (world X v souřadnicích grafu 0…CHART_W). */
+  function sampleProfileAtWorldX(wx) {
+    const { distKm, elev } = route;
+    const n = distKm.length;
+    const km = Math.max(0, Math.min(RD.ROUTE_KM, (wx / CHART_W) * RD.ROUTE_KM));
+    if (km <= distKm[0]) {
+      return { km, elev: elev[0], kind: kindsAtSeg(0), gradePct: gradeAtSeg(0) };
+    }
+    if (km >= distKm[n - 1]) {
+      return { km, elev: elev[n - 1], kind: kindsAtSeg(n - 2), gradePct: gradeAtSeg(n - 2) };
+    }
+    for (let i = 0; i < n - 1; i++) {
+      if (distKm[i] <= km && km <= distKm[i + 1]) {
+        const t = (km - distKm[i]) / (distKm[i + 1] - distKm[i]);
+        const e = elev[i] + t * (elev[i + 1] - elev[i]);
+        return { km, elev: e, kind: kindsAtSeg(i), gradePct: gradeAtSeg(i) };
+      }
+    }
+    return { km, elev: elev[0], kind: kindsAtSeg(0), gradePct: gradeAtSeg(0) };
+  }
+
+  function kindsAtSeg(i) {
+    const { kinds } = route;
+    const j = Math.max(0, Math.min(kinds.length - 1, i));
+    return kinds[j];
+  }
+
+  function gradeAtSeg(i) {
+    const { elev } = route;
+    const m = elev.length - 1;
+    const j = Math.max(0, Math.min(m - 1, i));
+    const dh = elev[j + 1] - elev[j];
+    return (dh / route.stepKm / 1000) * 100;
+  }
+
+  function kindLabelCs(k) {
+    if (k === "easyUp") return "mírné stoupání";
+    if (k === "steepUp") return "prudké stoupání";
+    if (k === "medDown") return "sestup";
+    return "rovinatý úsek";
+  }
+
+  function fmtGrade(pct) {
+    const r = Math.round(pct * 10) / 10;
+    const sign = r > 0 ? "+" : "";
+    return `${sign}${r.toLocaleString("cs-CZ")} %`;
+  }
+
   function mapPointAlongRoute(t) {
     const pts = [
       [32, 28],
@@ -252,6 +304,14 @@
         g.setAttribute("transform", `translate(${cx},${cy}) scale(${k},1)`);
       }
     });
+    const dot = svgEl.querySelector(".chart-scrubber-dot");
+    if (dot) {
+      const cx = parseFloat(dot.getAttribute("data-cx"), 10);
+      const cy = parseFloat(dot.getAttribute("data-cy"), 10);
+      if (Number.isFinite(cx) && Number.isFinite(cy)) {
+        dot.setAttribute("transform", `translate(${cx},${cy}) scale(${k},1)`);
+      }
+    }
   }
 
   function initChartZoom(svgEl) {
@@ -260,6 +320,27 @@
     const minW = 80;
     const maxW = CHART_W;
 
+    const scrubberG = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    scrubberG.setAttribute("id", "chartScrubber");
+    scrubberG.setAttribute("class", "chart-scrubber");
+    scrubberG.setAttribute("visibility", "hidden");
+    scrubberG.setAttribute("aria-hidden", "true");
+    scrubberG.innerHTML = `
+      <rect class="chart-scrubber-fill" fill="rgba(26,108,255,0.14)" />
+      <line class="chart-scrubber-line" y2="${CHART_H}" stroke="#1a6cff" stroke-opacity="0.45" stroke-width="0.9" stroke-linecap="round" />
+      <g class="chart-scrubber-dot" data-cx="0" data-cy="0">
+        <circle r="5.5" fill="#1a6cff" stroke="#fff" stroke-width="2" />
+      </g>`;
+    svgEl.appendChild(scrubberG);
+
+    const scrubFill = scrubberG.querySelector(".chart-scrubber-fill");
+    const scrubLine = scrubberG.querySelector(".chart-scrubber-line");
+    const scrubDot = scrubberG.querySelector(".chart-scrubber-dot");
+
+    const infoGrid = document.querySelector(".info-grid");
+    const chartHost = document.querySelector(".profile-chart");
+    let scrubActive = false;
+
     function apply() {
       viewW = Math.max(minW, Math.min(maxW, viewW));
       viewX = Math.max(0, Math.min(viewX, CHART_W - viewW));
@@ -267,6 +348,10 @@
       updateXLabels();
       updateChartPinTransforms(svgEl);
       updateGridLineDash(svgEl);
+      if (scrubActive) {
+        const last = scrubDot._lastClientX;
+        if (last != null) setScrubberAtClientX(last);
+      }
     }
 
     function clientToWorldX(clientX, rect) {
@@ -274,8 +359,70 @@
       return viewX + rx * viewW;
     }
 
+    /** Šířka pruhu „nad puntíkem“ v souřadnicích grafu (~konstantní na obrazovce při zoomu). */
+    function scrubStripWorldWidth(rect) {
+      const stripPx = 14;
+      return (stripPx / rect.width) * viewW;
+    }
+
+    function setScrubberAtClientX(clientX) {
+      scrubDot._lastClientX = clientX;
+      const rect = svgEl.getBoundingClientRect();
+      let wx = clientToWorldX(clientX, rect);
+      wx = Math.max(viewX, Math.min(viewX + viewW, wx));
+      const sample = sampleProfileAtWorldX(wx);
+      const cx = (sample.km / RD.ROUTE_KM) * CHART_W;
+      const cy = elevToY(sample.elev);
+      const sw = scrubStripWorldWidth(rect);
+
+      scrubFill.setAttribute("x", String(cx - sw / 2));
+      scrubFill.setAttribute("y", "0");
+      scrubFill.setAttribute("width", String(sw));
+      scrubFill.setAttribute("height", String(cy));
+
+      scrubLine.setAttribute("x1", String(cx));
+      scrubLine.setAttribute("x2", String(cx));
+      scrubLine.setAttribute("y1", String(cy));
+      scrubLine.setAttribute("y2", String(CHART_H));
+
+      scrubDot.setAttribute("data-cx", String(cx));
+      scrubDot.setAttribute("data-cy", String(cy));
+      updateChartPinTransforms(svgEl);
+
+      const items = document.querySelectorAll(".info-item span");
+      if (items[0]) items[0].textContent = fmtElev(sample.elev);
+      if (items[1]) items[1].textContent = fmtKm(sample.km);
+      if (items[2]) items[2].textContent = fmtGrade(sample.gradePct);
+      if (items[3]) items[3].textContent = kindLabelCs(sample.kind);
+    }
+
+    function showScrubber(clientX) {
+      scrubActive = true;
+      scrubberG.setAttribute("visibility", "visible");
+      scrubberG.setAttribute("aria-hidden", "false");
+      if (infoGrid) infoGrid.classList.add("info-grid--scrub");
+      if (chartHost) {
+        chartHost.setAttribute("aria-label", "Výškový profil trasy, výběr bodu podle pozice");
+      }
+      setScrubberAtClientX(clientX);
+    }
+
+    function hideScrubber() {
+      scrubActive = false;
+      scrubDot._lastClientX = null;
+      scrubberG.setAttribute("visibility", "hidden");
+      scrubberG.setAttribute("aria-hidden", "true");
+      if (infoGrid) infoGrid.classList.remove("info-grid--scrub");
+      if (chartHost) {
+        chartHost.setAttribute(
+          "aria-label",
+          "Výškový profil trasy, přibližení a posun dvěma prsty, výběr bodu jedním prstem"
+        );
+      }
+      updateStats();
+    }
+
     let pinch0 = null;
-    let pan0 = null;
 
     svgEl.addEventListener(
       "touchstart",
@@ -289,13 +436,9 @@
             viewX,
             viewW,
           };
-          pan0 = null;
-        } else if (e.touches.length === 1) {
-          pan0 = {
-            x: e.touches[0].clientX,
-            viewX,
-            viewW,
-          };
+          hideScrubber();
+        } else if (e.touches.length === 1 && !pinch0) {
+          showScrubber(e.touches[0].clientX);
         }
       },
       { passive: true }
@@ -320,12 +463,9 @@
           viewW = newW;
           viewX = newX;
           apply();
-        } else if (e.touches.length === 1 && pan0 && !pinch0) {
+        } else if (e.touches.length === 1 && scrubActive && !pinch0) {
           e.preventDefault();
-          const dxPx = e.touches[0].clientX - pan0.x;
-          const dxWorld = (dxPx / rect.width) * pan0.viewW;
-          viewX = pan0.viewX - dxWorld;
-          apply();
+          setScrubberAtClientX(e.touches[0].clientX);
         }
       },
       { passive: false }
@@ -335,32 +475,50 @@
       "touchend",
       (e) => {
         if (e.touches.length < 2) pinch0 = null;
-        if (e.touches.length === 0) pan0 = null;
-        if (e.touches.length === 1) {
-          pan0 = {
-            x: e.touches[0].clientX,
-            viewX,
-            viewW,
-          };
-        }
+        if (e.touches.length === 0) hideScrubber();
+        else if (e.touches.length === 1 && !pinch0) showScrubber(e.touches[0].clientX);
+      },
+      { passive: true }
+    );
+
+    svgEl.addEventListener(
+      "touchcancel",
+      () => {
+        pinch0 = null;
+        hideScrubber();
       },
       { passive: true }
     );
 
     let mousePan = null;
+    let mouseScrub = false;
+
     svgEl.addEventListener("mousedown", (e) => {
       if (e.button !== 0) return;
-      mousePan = { x: e.clientX, viewX, viewW };
+      if (e.shiftKey) {
+        mousePan = { x: e.clientX, viewX, viewW };
+        mouseScrub = false;
+        return;
+      }
+      mouseScrub = true;
+      showScrubber(e.clientX);
     });
     window.addEventListener("mousemove", (e) => {
-      if (!mousePan) return;
-      const rect = svgEl.getBoundingClientRect();
-      const dxWorld = ((e.clientX - mousePan.x) / rect.width) * mousePan.viewW;
-      viewX = mousePan.viewX - dxWorld;
-      apply();
+      if (mousePan) {
+        const rect = svgEl.getBoundingClientRect();
+        const dxWorld = ((e.clientX - mousePan.x) / rect.width) * mousePan.viewW;
+        viewX = mousePan.viewX - dxWorld;
+        apply();
+      } else if (mouseScrub) {
+        setScrubberAtClientX(e.clientX);
+      }
     });
-    window.addEventListener("mouseup", () => {
-      mousePan = null;
+    window.addEventListener("mouseup", (e) => {
+      if (mousePan) mousePan = null;
+      if (mouseScrub) {
+        mouseScrub = false;
+        hideScrubber();
+      }
     });
 
     svgEl.addEventListener(

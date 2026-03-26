@@ -226,7 +226,12 @@ body {
   flex-shrink: 0;
 }
 
-/* Elevation profile — Figma: 20px pod statistikami */
+/* Hodnoty při výběru bodu na grafu (scrubber) */
+.info-grid--scrub .info-item span {
+  font-weight: 700;
+}
+
+/* Elevation profile — Figma: 20px pod statistikami (142 − 122) */
 .profile-wrap {
   margin-top: 20px;
   width: 100%;
@@ -280,11 +285,11 @@ body {
   height: 90px;
   z-index: 0;
   touch-action: none;
-  cursor: grab;
+  cursor: default;
 }
 
 .profile-chart:active {
-  cursor: grabbing;
+  cursor: default;
 }
 
 .profile-chart svg {
@@ -292,6 +297,7 @@ body {
   height: 100%;
   display: block;
   touch-action: none;
+  -webkit-user-select: none;
   user-select: none;
 }
 
