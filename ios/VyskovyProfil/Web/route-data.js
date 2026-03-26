@@ -14,9 +14,10 @@
   const TARGET_DESCENT = 4200;
   const ELEV_MIN = 100;
   const ELEV_MAX = 1600;
-  /** Horní mez osy Y v grafu = nejvyšší bod trasy + padding (viditelné kolečko u maxima). */
-  const ELEV_AXIS_PAD = 400;
-  const ELEV_AXIS_MAX = ELEV_MAX + ELEV_AXIS_PAD;
+  /** Osa Y grafu (m n.m.); křivka leží v [ELEV_MIN, ELEV_MAX]. */
+  const ELEV_AXIS_MIN = 0;
+  const ELEV_AXIS_MID = 1000;
+  const ELEV_AXIS_MAX = 2000;
 
   /** @typedef {'easyUp' | 'steepUp' | 'medDown' | 'neutral'} SegmentKind */
 
@@ -134,14 +135,37 @@
       }
     }
 
-    /** Jistota: žádný segment nepřekročí ±13 % (násobení/normalizace může kvůli floatům ujet). */
+    /**
+     * Sklon ≤ 13 % a přesné roztažení výšek na [ELEV_MIN, ELEV_MAX] (nejnižší/nejvyšší bod trasy).
+     */
     {
       const maxDelta = (MAX_GRADE_PCT / 100) * STEP_M;
-      for (let i = 0; i < m; i++) {
-        let d = elev[i + 1] - elev[i];
-        if (d > maxDelta) d = maxDelta;
-        else if (d < -maxDelta) d = -maxDelta;
-        elev[i + 1] = elev[i] + d;
+      for (let iter = 0; iter < 40; iter++) {
+        for (let i = 0; i < m; i++) {
+          let d = elev[i + 1] - elev[i];
+          if (d > maxDelta) d = maxDelta;
+          else if (d < -maxDelta) d = -maxDelta;
+          elev[i + 1] = elev[i] + d;
+        }
+        let lo = elev[0];
+        let hi = elev[0];
+        for (let i = 1; i < N; i++) {
+          if (elev[i] < lo) lo = elev[i];
+          if (elev[i] > hi) hi = elev[i];
+        }
+        const span = hi - lo;
+        if (span < 1e-12) break;
+        for (let i = 0; i < N; i++) {
+          elev[i] = ELEV_MIN + (elev[i] - lo) * (ELEV_MAX - ELEV_MIN) / span;
+        }
+        let allOk = true;
+        for (let i = 0; i < m; i++) {
+          if (Math.abs(elev[i + 1] - elev[i]) > maxDelta + 1e-7) {
+            allOk = false;
+            break;
+          }
+        }
+        if (allOk) break;
       }
     }
 
@@ -204,7 +228,8 @@
     ROUTE_KM,
     ELEV_MIN,
     ELEV_MAX,
-    ELEV_AXIS_PAD,
+    ELEV_AXIS_MIN,
+    ELEV_AXIS_MID,
     ELEV_AXIS_MAX,
     TARGET_ASCENT,
     TARGET_DESCENT,

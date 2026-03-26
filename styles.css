@@ -300,6 +300,18 @@ body {
   flex-shrink: 0;
 }
 
+.info-scrub-grade-icon .info-scrub-grade-arrow--down {
+  display: none;
+}
+
+.info-scrub-grade-wrap--grade-down .info-scrub-grade-arrow--up {
+  display: none;
+}
+
+.info-scrub-grade-wrap--grade-down .info-scrub-grade-arrow--down {
+  display: block;
+}
+
 /* Prudké stoupání i klesání — červená jako steepUp v grafu (#e53935); ikona i % přes currentColor */
 .info-scrub-grade-wrap--steep-up,
 .info-scrub-grade-wrap--med-down {
@@ -387,10 +399,12 @@ body {
 
 /* Elevation profile — Figma: 20px pod statistikami (142 − 122) */
 .profile-wrap {
+  --profile-chart-h: 108px;
+  --profile-x-labels-h: 24px;
   margin-top: 20px;
   width: 100%;
   max-width: 345px;
-  height: 132px;
+  height: calc(var(--profile-chart-h) + var(--profile-x-labels-h));
   position: relative;
 }
 
@@ -404,7 +418,7 @@ body {
   position: absolute;
   left: 0;
   top: 0;
-  bottom: 24px;
+  bottom: var(--profile-x-labels-h);
   width: 56px;
   z-index: 2;
   display: flex;
@@ -441,7 +455,7 @@ body {
   left: 0;
   right: 0;
   top: 0;
-  height: 97px;
+  height: var(--profile-chart-h);
   z-index: 0;
   touch-action: none;
   cursor: default;
@@ -469,7 +483,7 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  height: 24px;
+  height: var(--profile-x-labels-h);
   z-index: 2;
   display: flex;
   justify-content: space-between;
@@ -487,12 +501,15 @@ body {
   align-items: center;
 }
 
+/* Čárka až k ose čáry v pruhu komunikace (SVG y=103.5 / vb=107; výška = .profile-chart). */
 .profile-x-labels span::before {
   content: "";
   width: 1px;
-  height: 8px;
+  flex-shrink: 0;
+  height: calc(8px + (3.5 / 107) * var(--profile-chart-h));
   background: var(--primary-60);
   margin-bottom: 2px;
+  margin-top: calc(-1 * (3.5 / 107) * var(--profile-chart-h));
 }
 
 .home-indicator {

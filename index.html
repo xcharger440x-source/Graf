@@ -59,8 +59,16 @@
             </svg>
           </button>
           <button type="button" class="sheet-icon-btn" aria-label="Zavřít">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <path d="M6 6l12 12M18 6L6 18" />
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <g transform="translate(6.0494 6.0494)">
+                <path
+                  fill="currentColor"
+                  fill-opacity="0.6"
+                  fill-rule="evenodd"
+                  clip-rule="evenodd"
+                  d="M5.95059 4.53638L1.70857 0.294352C1.31524 -0.09897 0.68426 -0.096789 0.293735 0.293735C-0.0995117 0.686982 -0.0965131 1.3177 0.294352 1.70857L4.53638 5.95059L0.294352 10.1926C-0.09897 10.5859 -0.096789 11.2169 0.293735 11.6074C0.686982 12.0007 1.3177 11.9977 1.70857 11.6068L5.95059 7.3648L10.1926 11.6068C10.5859 12.0001 11.2169 11.998 11.6074 11.6074C12.0007 11.2142 11.9977 10.5835 11.6068 10.1926L7.3648 5.95059L11.6068 1.70857C12.0001 1.31524 11.998 0.68426 11.6074 0.293735C11.2142 -0.0995117 10.5835 -0.0965131 10.1926 0.294352L5.95059 4.53638Z"
+                />
+              </g>
             </svg>
           </button>
         </div>
@@ -108,7 +116,12 @@
               <span class="info-scrub-grade-wrap">
                 <svg class="info-scrub-grade-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                   <path
+                    class="info-scrub-grade-arrow info-scrub-grade-arrow--up"
                     d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"
+                  />
+                  <path
+                    class="info-scrub-grade-arrow info-scrub-grade-arrow--down"
+                    d="M16 18l2.29-2.29-4.88-4.88-4 4L2 7.41 3.41 6l6 6 4-4 6.3 6.29L22 12v6z"
                   />
                 </svg>
                 <span class="info-scrub-grade"></span>
@@ -173,9 +186,9 @@
             title="Jeden prst: bod na profilu; dva prsty: zoom a posun. Myš: posun při držení Shift."
           ></div>
           <div class="profile-y-labels">
-            <span>1600 m</span>
-            <span>850 m</span>
-            <span>100 m</span>
+            <span>2000 m</span>
+            <span>1000 m</span>
+            <span>0 m</span>
           </div>
           <div class="profile-x-labels">
             <span>50 km</span>

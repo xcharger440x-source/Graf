@@ -36,7 +36,7 @@
     </g>`;
 
   function elevToY(e) {
-    const lo = RD.ELEV_MIN;
+    const lo = RD.ELEV_AXIS_MIN;
     const hi = RD.ELEV_AXIS_MAX;
     return CHART_H - ((e - lo) / (hi - lo)) * CHART_H;
   }
@@ -93,6 +93,18 @@
     const r = Math.round(pct * 10) / 10;
     const sign = r > 0 ? "+" : "";
     return `${sign}${r.toLocaleString("cs-CZ")} %`;
+  }
+
+  /** Střední 6–10 % (včetně přesně 10 %), prudké cokoliv nad 10 % (|sklon|). */
+  const GRADE_BAND_MED_HEX = "#FFE7B2";
+  const GRADE_BAND_STEEP_HEX = "#FFB8B3";
+  const GRADE_BAND_FILL_OPACITY = 0.55;
+
+  function gradeBandKindFromPct(pct) {
+    const a = Math.abs(pct);
+    if (a > 10) return "steep";
+    if (a >= 6 && a <= 10) return "medium";
+    return null;
   }
 
   /** Průměr 4 km/h → čas v hodinách; minuty jako desetinná část (např. 0,5 h). */
@@ -255,6 +267,33 @@
     }
     fillD += ` L ${xs(n - 1).toFixed(2)} ${CHART_H} Z`;
 
+    let gradeBandPaths = "";
+    let seg = 0;
+    while (seg < n - 1) {
+      const kind = gradeBandKindFromPct(gradeAtSeg(seg));
+      if (!kind) {
+        seg++;
+        continue;
+      }
+      const segStart = seg;
+      let segEnd = seg;
+      while (segEnd < n - 2 && gradeBandKindFromPct(gradeAtSeg(segEnd + 1)) === kind) {
+        segEnd++;
+      }
+      const i0 = segStart;
+      const i1 = segEnd + 1;
+      let bd = `M ${xs(i0).toFixed(2)} ${ys(i0).toFixed(2)}`;
+      for (let k = i0 + 1; k <= i1; k++) {
+        bd += ` L ${xs(k).toFixed(2)} ${ys(k).toFixed(2)}`;
+      }
+      bd += ` L ${xs(i1).toFixed(2)} ${CHART_H} L ${xs(i0).toFixed(2)} ${CHART_H} Z`;
+      const fill = kind === "steep" ? GRADE_BAND_STEEP_HEX : GRADE_BAND_MED_HEX;
+      const cls =
+        kind === "steep" ? "chart-grade-band chart-grade-band--steep" : "chart-grade-band chart-grade-band--medium";
+      gradeBandPaths += `<path class="${cls}" d="${bd}" fill="${fill}" fill-opacity="${GRADE_BAND_FILL_OPACITY}"/>`;
+      seg = segEnd + 1;
+    }
+
     let gradBackStops = "";
     let gradFrontStops = "";
     for (const run of surfaceRuns) {
@@ -329,6 +368,7 @@
       </defs>
       ${yGrid.join("")}
       <path d="${fillD}" fill="url(#chartFillGrad)"/>
+      <g class="chart-grade-bands" aria-hidden="true">${gradeBandPaths}</g>
       ${wayStripG}
       ${lines}
       ${stopG}
@@ -349,12 +389,10 @@
 
   function updateYLabels() {
     const labels = document.querySelectorAll(".profile-y-labels span");
-    const top = RD.ELEV_AXIS_MAX;
-    const mid = (RD.ELEV_AXIS_MAX + RD.ELEV_MIN) / 2;
-    const vals = [top, mid, RD.ELEV_MIN];
-    labels.forEach((el, i) => {
-      if (vals[i] != null) el.textContent = `${Math.round(vals[i])} m`;
-    });
+    const fmt = (n) => `${Math.round(n).toLocaleString("cs-CZ")} m`;
+    if (labels[0]) labels[0].textContent = fmt(RD.ELEV_AXIS_MAX);
+    if (labels[1]) labels[1].textContent = fmt(RD.ELEV_AXIS_MID);
+    if (labels[2]) labels[2].textContent = fmt(RD.ELEV_AXIS_MIN);
   }
 
   /** Čárkování horizontál v konstantních pixelech při jakémkoli viewBoxu. */
@@ -489,6 +527,7 @@
       if (eEl) eEl.textContent = fmtElev(sample.elev);
       if (gEl) gEl.textContent = fmtGrade(sample.gradePct);
       if (gradeWrap) {
+        gradeWrap.classList.toggle("info-scrub-grade-wrap--grade-down", sample.gradePct < 0);
         gradeWrap.classList.remove("info-scrub-grade-wrap--steep-up", "info-scrub-grade-wrap--med-down");
         if (sample.kind === "steepUp") gradeWrap.classList.add("info-scrub-grade-wrap--steep-up");
         else if (sample.kind === "medDown") gradeWrap.classList.add("info-scrub-grade-wrap--med-down");
