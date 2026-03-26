@@ -12,6 +12,9 @@
   const TARGET_DESCENT = 3600;
   const ELEV_MIN = 100;
   const ELEV_MAX = 1600;
+  /** Horní mez osy Y v grafu = nejvyšší bod trasy + padding (viditelné kolečko u maxima). */
+  const ELEV_AXIS_PAD = 400;
+  const ELEV_AXIS_MAX = ELEV_MAX + ELEV_AXIS_PAD;
 
   /** @typedef {'easyUp' | 'steepUp' | 'medDown' | 'neutral'} SegmentKind */
 
@@ -165,6 +168,8 @@
     ROUTE_KM,
     ELEV_MIN,
     ELEV_MAX,
+    ELEV_AXIS_PAD,
+    ELEV_AXIS_MAX,
     TARGET_ASCENT,
     TARGET_DESCENT,
   };

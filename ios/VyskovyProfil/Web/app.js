@@ -30,7 +30,9 @@
     </g>`;
 
   function elevToY(e) {
-    return CHART_H - ((e - RD.ELEV_MIN) / (RD.ELEV_MAX - RD.ELEV_MIN)) * CHART_H;
+    const lo = RD.ELEV_MIN;
+    const hi = RD.ELEV_AXIS_MAX;
+    return CHART_H - ((e - lo) / (hi - lo)) * CHART_H;
   }
 
   function distToX(dKm) {
@@ -210,7 +212,9 @@
 
   function updateYLabels() {
     const labels = document.querySelectorAll(".profile-y-labels span");
-    const vals = [RD.ELEV_MAX, (RD.ELEV_MAX + RD.ELEV_MIN) / 2, RD.ELEV_MIN];
+    const top = RD.ELEV_AXIS_MAX;
+    const mid = (RD.ELEV_AXIS_MAX + RD.ELEV_MIN) / 2;
+    const vals = [top, mid, RD.ELEV_MIN];
     labels.forEach((el, i) => {
       if (vals[i] != null) el.textContent = `${Math.round(vals[i])} m`;
     });
