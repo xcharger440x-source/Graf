@@ -16,6 +16,7 @@
     0 3px 5px rgba(0, 0, 0, 0.2);
   --font-sans: "Roboto", system-ui, sans-serif;
   --font-display: "SF Pro Display", "Roboto", system-ui, sans-serif;
+  --font-text: "SF Pro Text", "Roboto", system-ui, sans-serif;
 }
 
 *,
@@ -137,7 +138,7 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  min-height: 283px;
+  min-height: 291px;
   padding: 24px 24px calc(24px + env(safe-area-inset-bottom, 0));
   background: #fff;
   border-radius: 28px 28px 0 0;
@@ -158,15 +159,18 @@ body {
   font-family: var(--font-display);
   font-size: 32px;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  line-height: 32px;
+  letter-spacing: 0.384px;
   color: var(--primary);
 }
 
 .sheet-sub {
   margin: 0;
+  font-family: var(--font-text);
   font-size: 16px;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  line-height: 22px;
+  letter-spacing: -0.32px;
   color: var(--primary);
 }
 
@@ -192,15 +196,15 @@ body {
 }
 
 .sheet-icon-btn svg {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
 }
 
 .info-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px 16px;
-  margin-top: 22px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
   max-width: 345px;
 }
 
@@ -208,6 +212,9 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
+  flex: 0 0 calc((100% - 8px) / 2);
+  max-width: calc((100% - 8px) / 2);
+  box-sizing: border-box;
   font-size: 16px;
   line-height: 22px;
   color: var(--primary);
@@ -219,35 +226,72 @@ body {
   flex-shrink: 0;
 }
 
-/* Elevation profile */
+/* Elevation profile — Figma: 20px pod statistikami (142 − 122) */
 .profile-wrap {
-  margin-top: 8px;
+  margin-top: 20px;
   width: 100%;
   max-width: 345px;
   height: 125px;
   position: relative;
 }
 
+/* Osa Y překrývá začátek grafu; začátek textu = levý okraj ikon v .info-item */
 .profile-y-labels {
   position: absolute;
   left: 0;
   top: 0;
   bottom: 24px;
-  width: 44px;
+  width: 56px;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  align-items: flex-start;
   font-size: 12px;
   line-height: 16px;
   color: var(--primary-60);
+  padding-left: 0;
+  padding-right: 0;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.profile-y-labels span {
+  display: block;
+  text-align: left;
+  white-space: nowrap;
+  text-shadow:
+    0 0 8px rgba(255, 255, 255, 0.95),
+    0 0 2px rgba(255, 255, 255, 0.9);
+}
+
+/* Figma Body: kruh 18px, Roboto Bold 14 / 18, primary */
+.profile-segment-badge {
+  position: absolute;
+  top: 0;
+  z-index: 4;
+  width: 18px;
+  height: 18px;
+  border-radius: 40px;
+  background: var(--primary);
+  color: #fff;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  pointer-events: none;
+  transform: translateX(-50%);
+  left: calc(56px + var(--profile-badge-t, 0.38) * (100% - 56px));
 }
 
 .profile-chart {
   position: absolute;
-  left: 44px;
+  left: 0;
   right: 0;
   top: 0;
   height: 90px;
+  z-index: 0;
   touch-action: none;
   cursor: grab;
 }
@@ -267,10 +311,11 @@ body {
 
 .surface-bar {
   position: absolute;
-  left: 44px;
+  left: 0;
   right: 0;
   bottom: 22px;
   height: 7px;
+  z-index: 1;
   border-radius: 2px;
   overflow: hidden;
   display: flex;
@@ -291,16 +336,19 @@ body {
 
 .profile-x-labels {
   position: absolute;
-  left: 44px;
+  left: 0;
   right: 0;
   bottom: 0;
   height: 24px;
+  z-index: 2;
   display: flex;
   justify-content: space-between;
   padding-left: 56px;
+  box-sizing: border-box;
   font-size: 12px;
   line-height: 16px;
   color: var(--primary-60);
+  pointer-events: none;
 }
 
 .profile-x-labels span {

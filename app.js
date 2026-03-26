@@ -12,7 +12,9 @@
     steepUp: "#e53935",
     medDown: "#fb8c00",
     fill: "rgba(26,108,255,0.18)",
-    grid: "rgba(1,30,57,0.12)",
+    /* Horizontály osy (Figma vector2/3) */
+    gridH: "rgba(1, 30, 57, 0.12)",
+    gridHDash: "2 5",
   };
 
   const pinMap = `
@@ -114,7 +116,7 @@
   }
 
   function buildChartSvg() {
-    const { distKm, elev, kinds, stops, iMin, iMax } = route;
+    const { distKm, elev, kinds, stops } = route;
     const n = distKm.length;
 
     const xs = (i) => distToX(distKm[i]);
@@ -123,8 +125,8 @@
     let lines = "";
     for (let i = 0; i < n - 1; i++) {
       const c = kindStroke(kinds[i]);
-      const sw = kinds[i] === "neutral" ? 3.2 : 4;
-      lines += `<line x1="${xs(i).toFixed(2)}" y1="${ys(i).toFixed(2)}" x2="${xs(i + 1).toFixed(2)}" y2="${ys(i + 1).toFixed(2)}" stroke="${c}" stroke-width="${sw}" stroke-linecap="round"/>`;
+      const sw = kinds[i] === "neutral" ? 3 : 3.8;
+      lines += `<line x1="${xs(i).toFixed(2)}" y1="${ys(i).toFixed(2)}" x2="${xs(i + 1).toFixed(2)}" y2="${ys(i + 1).toFixed(2)}" stroke="${c}" stroke-width="${sw}" stroke-linecap="round" shape-rendering="geometricPrecision"/>`;
     }
 
     let fillD = `M ${xs(0).toFixed(2)} ${CHART_H} L`;
@@ -133,50 +135,31 @@
     }
     fillD += ` L ${xs(n - 1).toFixed(2)} ${CHART_H} Z`;
 
-    const gridLines = [];
-    for (let g = 0; g <= 4; g++) {
-      const gx = (g / 4) * CHART_W;
-      gridLines.push(
-        `<line x1="${gx}" y1="0" x2="${gx}" y2="${CHART_H}" stroke="${COL.grid}" stroke-width="0.6" stroke-dasharray="2 3"/>`
-      );
-    }
-    for (let g = 0; g <= 3; g++) {
-      const gy = (g / 3) * CHART_H;
-      gridLines.push(
-        `<line x1="0" y1="${gy}" x2="${CHART_W}" y2="${gy}" stroke="${COL.grid}" stroke-width="0.6" stroke-dasharray="2 3"/>`
-      );
-    }
-
-    function arrowUp(x, y) {
-      return `<g transform="translate(${x},${y})">
-        <path d="M0 10 L0 -2 M-5 3 L0 -4 L5 3" fill="none" stroke="#2e7d32" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-      </g>`;
-    }
-    function arrowDown(x, y) {
-      return `<g transform="translate(${x},${y})">
-        <path d="M0 -10 L0 2 M-5 -3 L0 4 L5 -3" fill="none" stroke="#c62828" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-      </g>`;
-    }
+    /* Tři horizontály — horní dvě čárkované (jako Figma), spodní souvislá */
+    const yGrid = [0, CHART_H / 2, CHART_H].map((gy, idx) => {
+      const dash =
+        idx === 2 ? "" : ` stroke-dasharray="${COL.gridHDash}"`;
+      return `<line x1="0" y1="${gy}" x2="${CHART_W}" y2="${gy}" stroke="${COL.gridH}" stroke-width="0.5" stroke-linecap="round" opacity="0.9"${dash}/>`;
+    });
 
     let stopG = "";
     for (const si of stops) {
       const sx = xs(si);
       const sy = ys(si);
-      stopG += `<g transform="translate(${sx.toFixed(2)},${sy.toFixed(2)})">${pinSheet}</g>`;
+      stopG += `<g class="chart-pin" data-cx="${sx.toFixed(2)}" data-cy="${sy.toFixed(2)}" transform="translate(${sx.toFixed(2)},${sy.toFixed(2)}) scale(1,1)">${pinSheet}</g>`;
     }
 
     return `
       <defs>
         <linearGradient id="chartFillGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="rgba(26,108,255,0.22)"/>
+          <stop offset="0%" stop-color="rgba(26,108,255,0.16)"/>
+          <stop offset="55%" stop-color="rgba(26,108,255,0.06)"/>
           <stop offset="100%" stop-color="rgba(26,108,255,0.02)"/>
         </linearGradient>
       </defs>
-      ${gridLines.join("")}
+      ${yGrid.join("")}
       <path d="${fillD}" fill="url(#chartFillGrad)"/>
       ${lines}
-      ${arrowUp(xs(iMax), ys(iMax) - 14)}
-      ${arrowDown(xs(iMin), ys(iMin) + 14)}
       ${stopG}
     `;
   }
@@ -233,6 +216,23 @@
     });
   }
 
+  /** Kompensuje preserveAspectRatio="none" — špendlíky zůstanou kruhové při libovolném zoomu. */
+  function updateChartPinTransforms(svgEl) {
+    if (!svgEl) return;
+    const vb = svgEl.viewBox && svgEl.viewBox.baseVal;
+    if (!vb || vb.width < 1 || vb.height < 1) return;
+    const rect = svgEl.getBoundingClientRect();
+    if (rect.width < 1 || rect.height < 1) return;
+    const k = (rect.height * vb.width) / (rect.width * vb.height);
+    svgEl.querySelectorAll(".chart-pin").forEach((g) => {
+      const cx = parseFloat(g.getAttribute("data-cx"), 10);
+      const cy = parseFloat(g.getAttribute("data-cy"), 10);
+      if (Number.isFinite(cx) && Number.isFinite(cy)) {
+        g.setAttribute("transform", `translate(${cx},${cy}) scale(${k},1)`);
+      }
+    });
+  }
+
   function initChartZoom(svgEl) {
     let viewX = 0;
     let viewW = CHART_W;
@@ -244,6 +244,7 @@
       viewX = Math.max(0, Math.min(viewX, CHART_W - viewW));
       svgEl.setAttribute("viewBox", `${viewX} 0 ${viewW} ${CHART_H}`);
       updateXLabels();
+      updateChartPinTransforms(svgEl);
     }
 
     function clientToWorldX(clientX, rect) {
@@ -378,8 +379,31 @@
   chartHost.innerHTML = `<svg id="elevationChart" viewBox="0 0 ${CHART_W} ${CHART_H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${buildChartSvg()}</svg>`;
   const chartSvg = document.getElementById("elevationChart");
   initChartZoom(chartSvg);
+  if (chartHost && typeof ResizeObserver !== "undefined") {
+    const ro = new ResizeObserver(() => updateChartPinTransforms(chartSvg));
+    ro.observe(chartHost);
+  }
 
   document.querySelector(".surface-bar").innerHTML = buildSurfaceBar();
   updateStats();
   updateYLabels();
+
+  function segmentBadgeNumber(routeData, t) {
+    const { kinds } = routeData;
+    if (!kinds.length) return 1;
+    const i = Math.min(kinds.length - 1, Math.max(0, Math.floor(t * (kinds.length - 1))));
+    let seg = 1;
+    for (let j = 1; j <= i; j++) {
+      if (kinds[j] !== kinds[j - 1]) seg++;
+    }
+    return Math.min(99, seg);
+  }
+
+  const wrap = document.querySelector(".profile-wrap");
+  const badgeEl = document.querySelector(".profile-segment-badge");
+  if (wrap && badgeEl) {
+    const t = 0.38;
+    wrap.style.setProperty("--profile-badge-t", String(t));
+    badgeEl.textContent = String(segmentBadgeNumber(route, t));
+  }
 })();

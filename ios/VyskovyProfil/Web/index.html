@@ -50,12 +50,16 @@
       <section class="bottom-sheet" aria-label="Statistiky trasy">
         <div class="sheet-actions">
           <button type="button" class="sheet-icon-btn" aria-label="Rozšířit">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M8 5v6H2V5h6zm8 0v6h6V5h-6zM8 19v-6H2v6h6zm8 0v-6h6v6h-6z" />
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path
+                fill="currentColor"
+                fill-opacity="0.6"
+                d="M12 22L6 16L7.425 14.575L12 19.15L16.575 14.575L18 16L12 22ZM7.45 9.4L6 8L12 2L18 8L16.55 9.4L12 4.85L7.45 9.4Z"
+              />
             </svg>
           </button>
           <button type="button" class="sheet-icon-btn" aria-label="Zavřít">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path d="M6 6l12 12M18 6L6 18" />
             </svg>
           </button>
@@ -69,37 +73,38 @@
         <div class="info-grid">
           <div class="info-item">
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M7 14l5-8 5 8H7z" />
+              <path d="M7 14l5-5 5 5H7z" />
             </svg>
             <span>1600 m n.m.</span>
           </div>
           <div class="info-item">
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M7 10l5 8 5-8H7z" />
+              <path d="M7 10l5 5 5-5H7z" />
             </svg>
             <span>100 m n.m.</span>
           </div>
           <div class="info-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M4 16l4-6 4 5 4-9 4 6" />
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z" />
             </svg>
             <span>5000 m</span>
           </div>
           <div class="info-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M4 8l4 6 4-5 4 9 4-6" />
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M16 18l2.29-2.29-4.88-4.88-4 4L2 7.41 3.41 6l6 6 4-4 6.3 6.29L22 12v6z" />
             </svg>
             <span>3600 m</span>
           </div>
         </div>
 
         <div class="profile-wrap">
+          <div class="profile-chart" role="img" aria-label="Výškový profil trasy, přibližitelný gestem"></div>
           <div class="profile-y-labels">
             <span>1600 m</span>
             <span>850 m</span>
             <span>100 m</span>
           </div>
-          <div class="profile-chart" role="img" aria-label="Výškový profil trasy, přibližitelný gestem"></div>
+          <div class="profile-segment-badge" aria-hidden="true"></div>
           <div class="surface-bar" aria-hidden="true"></div>
           <div class="profile-x-labels">
             <span>0 km</span>
