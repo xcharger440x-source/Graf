@@ -350,6 +350,9 @@ body {
 }
 
 .info-scrub-row--way {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin: 0;
   padding: 0;
   font-size: 14px;
@@ -360,6 +363,25 @@ body {
   color: var(--primary);
   overflow: hidden;
   white-space: nowrap;
+}
+
+.info-scrub-way-icon {
+  display: none;
+  flex-shrink: 0;
+  line-height: 0;
+}
+
+.info-scrub-row--way--pesina .info-scrub-way-icon--pesina {
+  display: inline-flex;
+}
+
+.info-scrub-row--way--chodnik .info-scrub-way-icon--chodnik {
+  display: inline-flex;
+}
+
+.info-scrub-way-text {
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
 }
 
@@ -368,7 +390,7 @@ body {
   margin-top: 20px;
   width: 100%;
   max-width: 345px;
-  height: 125px;
+  height: 132px;
   position: relative;
 }
 
@@ -419,7 +441,7 @@ body {
   left: 0;
   right: 0;
   top: 0;
-  height: 90px;
+  height: 97px;
   z-index: 0;
   touch-action: none;
   cursor: default;
@@ -438,29 +460,8 @@ body {
   user-select: none;
 }
 
-.surface-bar {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 22px;
-  height: 7px;
-  z-index: 1;
-  border-radius: 2px;
-  overflow: hidden;
-  display: flex;
-}
-
-.surface-bar span {
-  flex: 1;
-  min-width: 4px;
-}
-
-.surface-bar span:nth-child(odd) {
-  background: #c4a574;
-}
-
-.surface-bar span:nth-child(even) {
-  background: #8b7355;
+.profile-chart .chart-profile-stroke {
+  filter: drop-shadow(0 1px 1.5px rgba(1, 30, 57, 0.14));
 }
 
 .profile-x-labels {

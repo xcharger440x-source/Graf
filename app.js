@@ -5,6 +5,9 @@
   const MAP_VB = { w: 360, h: 400 };
   const CHART_W = 1500;
   const CHART_H = 100;
+  /** Pruh komunikace pod grafem (ve viewBoxu) — zoomuje s křivkou. */
+  const CHART_WAY_STRIP_H = 7;
+  const CHART_VB_H = CHART_H + CHART_WAY_STRIP_H;
   /** Délka čárky a mezery mřížky v pixelech (konstantní při zoomu). */
   const GRID_DASH_PX = 3;
   const GRID_GAP_PX = 5;
@@ -40,13 +43,6 @@
 
   function distToX(dKm) {
     return (dKm / RD.ROUTE_KM) * CHART_W;
-  }
-
-  function kindStroke(k) {
-    if (k === "easyUp") return COL.easyUp;
-    if (k === "steepUp") return COL.steepUp;
-    if (k === "medDown") return COL.medDown;
-    return COL.neutral;
   }
 
   function fmtKm(n) {
@@ -102,6 +98,8 @@
   const SCRUB_AVG_KMH = 4;
   const SURFACE_UNPAVED = "Nezpevněný povrch";
   const SURFACE_PAVED = "Zpevněný povrch: kostky, štěrk/udusaný povrch";
+  const WAY_PESINA = "Pěšina";
+  const WAY_CHODNIK = "Chodník";
 
   function fmtHoursFromKm(km) {
     const h = km / SCRUB_AVG_KMH;
@@ -114,13 +112,20 @@
     return `${str} h`;
   }
 
+  /** Stejné střídání jako u ikon v sheetu (km / 2,5 km). */
+  const SURFACE_ALT_KM = 2.5;
+
+  function isPavedAtKm(km) {
+    return Math.floor(km / SURFACE_ALT_KM) % 2 === 1;
+  }
+
   /** Deterministické střídání povrchu podél km; druh komunikace podle povrchu. */
   function surfaceWayAtKm(km) {
-    const paved = Math.floor(km / 2.5) % 2 === 1;
+    const paved = isPavedAtKm(km);
     if (!paved) {
-      return { surface: SURFACE_UNPAVED, way: "Pěšina" };
+      return { surface: SURFACE_UNPAVED, way: WAY_PESINA };
     }
-    return { surface: SURFACE_PAVED, way: "Chodník" };
+    return { surface: SURFACE_PAVED, way: WAY_CHODNIK };
   }
 
   function mapPointAlongRoute(t) {
@@ -190,25 +195,136 @@
       </svg>`;
   }
 
+  /** Čárkování přední vrstvy jako ve vzorové ikoně (SVG). */
+  const SURFACE_FRONT_DASH_ARRAY = "6 4";
+
+  function elevAtKm(km) {
+    const { distKm, elev } = route;
+    const n = distKm.length;
+    km = Math.max(0, Math.min(RD.ROUTE_KM, km));
+    if (km <= distKm[0]) return elev[0];
+    if (km >= distKm[n - 1]) return elev[n - 1];
+    for (let i = 0; i < n - 1; i++) {
+      if (distKm[i] <= km && km <= distKm[i + 1]) {
+        const t = (km - distKm[i]) / (distKm[i + 1] - distKm[i]);
+        return elev[i] + t * (elev[i + 1] - elev[i]);
+      }
+    }
+    return elev[0];
+  }
+
+  /** Vzorky km: uzly trasy + hranice střídání povrchu (SURFACE_ALT_KM). */
+  function collectProfileKmSamples() {
+    const { distKm } = route;
+    const set = new Set();
+    for (const km of distKm) set.add(km);
+    for (let km = 0; km <= RD.ROUTE_KM + 1e-9; km += SURFACE_ALT_KM) {
+      set.add(Math.min(km, RD.ROUTE_KM));
+    }
+    return Array.from(set).sort((a, b) => a - b);
+  }
+
+  /** Catmull–Rom → kubické Bézierové segmenty (hladké záhyby). */
+  function catmullRomToPathD(points) {
+    if (points.length < 2) {
+      const p = points[0];
+      return `M ${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
+    }
+    const n = points.length;
+    let d = `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`;
+    for (let i = 0; i < n - 1; i++) {
+      const p0 = i > 0 ? points[i - 1] : points[0];
+      const p1 = points[i];
+      const p2 = points[i + 1];
+      const p3 = i + 2 < n ? points[i + 2] : points[i + 1];
+      const cp1x = p1.x + (p2.x - p0.x) / 6;
+      const cp1y = p1.y + (p2.y - p0.y) / 6;
+      const cp2x = p2.x - (p3.x - p1.x) / 6;
+      const cp2y = p2.y - (p3.y - p1.y) / 6;
+      d += ` C ${cp1x.toFixed(2)} ${cp1y.toFixed(2)} ${cp2x.toFixed(2)} ${cp2y.toFixed(2)} ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`;
+    }
+    return d;
+  }
+
+  function fillPathUnderSmoothCurve(points) {
+    if (points.length < 2) return "";
+    const top = catmullRomToPathD(points);
+    const first = points[0];
+    const last = points[points.length - 1];
+    const rest = top.replace(/^M\s+[^\s]+\s+[^\s]+/, "");
+    return `M ${first.x.toFixed(2)} ${CHART_H} L ${first.x.toFixed(2)} ${first.y.toFixed(2)}${rest} L ${last.x.toFixed(2)} ${CHART_H} Z`;
+  }
+
   function buildChartSvg() {
-    const { distKm, elev, kinds, stops } = route;
+    const { distKm, elev, stops } = route;
     const n = distKm.length;
 
     const xs = (i) => distToX(distKm[i]);
     const ys = (i) => elevToY(elev[i]);
 
-    let lines = "";
-    for (let i = 0; i < n - 1; i++) {
-      const c = kindStroke(kinds[i]);
-      const sw = kinds[i] === "neutral" ? 3 : 3.8;
-      lines += `<line x1="${xs(i).toFixed(2)}" y1="${ys(i).toFixed(2)}" x2="${xs(i + 1).toFixed(2)}" y2="${ys(i + 1).toFixed(2)}" stroke="${c}" stroke-width="${sw}" stroke-linecap="round" shape-rendering="geometricPrecision"/>`;
+    const W_BACK = 7;
+    const W_FRONT = 3.5;
+    const W_HALO = W_BACK + 2.8;
+    const COL_SURF_UNP_BACK = "#99adff";
+    const COL_SURF_UNP_FRONT = "#0033ff";
+    const COL_SURF_PV_BACK = "#0033ff";
+    const COL_SURF_PV_FRONT = "#99adff";
+
+    const kms = collectProfileKmSamples();
+    const profilePoints = kms.map((km) => ({
+      x: distToX(km),
+      y: elevToY(elevAtKm(km)),
+    }));
+    const lineD = catmullRomToPathD(profilePoints);
+    const fillD = fillPathUnderSmoothCurve(profilePoints);
+
+    const segs = Math.ceil(RD.ROUTE_KM / SURFACE_ALT_KM);
+    let gradBackStops = "";
+    let gradFrontStops = "";
+    for (let i = 0; i < segs; i++) {
+      const km0 = i * SURFACE_ALT_KM;
+      const km1 = Math.min((i + 1) * SURFACE_ALT_KM, RD.ROUTE_KM);
+      const pct0 = (km0 / RD.ROUTE_KM) * 100;
+      const pct1 = (km1 / RD.ROUTE_KM) * 100;
+      const paved = isPavedAtKm((km0 + km1) / 2);
+      const cBack = paved ? COL_SURF_PV_BACK : COL_SURF_UNP_BACK;
+      const cFront = paved ? COL_SURF_PV_FRONT : COL_SURF_UNP_FRONT;
+      gradBackStops += `<stop offset="${pct0.toFixed(6)}%" stop-color="${cBack}"/><stop offset="${pct1.toFixed(6)}%" stop-color="${cBack}"/>`;
+      gradFrontStops += `<stop offset="${pct0.toFixed(6)}%" stop-color="${cFront}"/><stop offset="${pct1.toFixed(6)}%" stop-color="${cFront}"/>`;
     }
 
-    let fillD = `M ${xs(0).toFixed(2)} ${CHART_H} L`;
-    for (let i = 0; i < n; i++) {
-      fillD += ` ${xs(i).toFixed(2)} ${ys(i).toFixed(2)}`;
+    const pathCommon =
+      'fill="none" stroke-linecap="round" stroke-linejoin="round" shape-rendering="geometricPrecision"';
+    const lines = `
+      <g class="chart-profile-stroke">
+        <path class="chart-line-halo" d="${lineD}" ${pathCommon} stroke="#ffffff" stroke-width="${W_HALO}" stroke-opacity="0.92"/>
+        <path class="chart-line-back" d="${lineD}" ${pathCommon} stroke="url(#chartSurfBack)" stroke-width="${W_BACK}"/>
+        <path class="chart-line-front" d="${lineD}" ${pathCommon} stroke="url(#chartSurfFront)" stroke-width="${W_FRONT}" stroke-dasharray="${SURFACE_FRONT_DASH_ARRAY}"/>
+      </g>`;
+
+    /* Pruh komunikace (pěšina / chodník) — stejné km jako graf, styl jako ikony 3. řádku */
+    let wayStripG = "";
+    const yWay = CHART_H;
+    const cyWay = CHART_H + CHART_WAY_STRIP_H / 2;
+    const nWaySeg = Math.ceil(RD.ROUTE_KM / SURFACE_ALT_KM);
+    for (let wi = 0; wi < nWaySeg; wi++) {
+      const kmA = wi * SURFACE_ALT_KM;
+      const kmB = Math.min((wi + 1) * SURFACE_ALT_KM, RD.ROUTE_KM);
+      const wx0 = distToX(kmA);
+      const wx1 = distToX(kmB);
+      const ww = wx1 - wx0;
+      if (ww < 1e-9) continue;
+      const { way } = surfaceWayAtKm((kmA + kmB) / 2);
+      const pes = way === WAY_PESINA;
+      const back = pes ? "#ebe5d5" : "#ececf1";
+      const ln = pes ? "#837b62" : "#bebcba";
+      const cls = pes ? "chart-way-seg chart-way-seg--pesina" : "chart-way-seg chart-way-seg--chodnik";
+      const dashAttr = pes ? ` stroke-dasharray="5 4"` : "";
+      const lw = pes ? "1.35" : "1.55";
+      wayStripG += `<g class="${cls}"><rect x="${wx0.toFixed(2)}" y="${yWay}" width="${ww.toFixed(2)}" height="${CHART_WAY_STRIP_H}" fill="${back}"/>`;
+      wayStripG += `<line x1="${wx0.toFixed(2)}" y1="${cyWay}" x2="${wx1.toFixed(2)}" y2="${cyWay}" stroke="${ln}" stroke-width="${lw}" stroke-linecap="round"${dashAttr}/></g>`;
     }
-    fillD += ` L ${xs(n - 1).toFixed(2)} ${CHART_H} Z`;
+    wayStripG = `<g class="chart-way-strip" aria-hidden="true">${wayStripG}</g>`;
 
     /* Tři horizontály — stroke-dasharray doplní updateGridLineDash (px konstantní při zoomu) */
     const yGrid = [0, CHART_H / 2, CHART_H].map((gy) => {
@@ -229,44 +345,19 @@
           <stop offset="55%" stop-color="rgba(26,108,255,0.06)"/>
           <stop offset="100%" stop-color="rgba(26,108,255,0.02)"/>
         </linearGradient>
+        <linearGradient id="chartSurfBack" x1="0" y1="0" x2="${CHART_W}" y2="0" gradientUnits="userSpaceOnUse">
+          ${gradBackStops}
+        </linearGradient>
+        <linearGradient id="chartSurfFront" x1="0" y1="0" x2="${CHART_W}" y2="0" gradientUnits="userSpaceOnUse">
+          ${gradFrontStops}
+        </linearGradient>
       </defs>
       ${yGrid.join("")}
       <path d="${fillD}" fill="url(#chartFillGrad)"/>
+      ${wayStripG}
       ${lines}
       ${stopG}
     `;
-  }
-
-  function buildSurfaceBar() {
-    const { kinds } = route;
-    const buckets = 8;
-    const per = Math.floor(kinds.length / buckets);
-    let html = "";
-    for (let b = 0; b < buckets; b++) {
-      const from = b * per;
-      const to = b === buckets - 1 ? kinds.length : (b + 1) * per;
-      const slice = kinds.slice(from, to);
-      const counts = { easyUp: 0, steepUp: 0, medDown: 0, neutral: 0 };
-      for (const k of slice) counts[k]++;
-      let best = "neutral";
-      let mv = 0;
-      for (const k of Object.keys(counts)) {
-        if (counts[k] > mv) {
-          mv = counts[k];
-          best = k;
-        }
-      }
-      const bg =
-        best === "easyUp"
-          ? "#e6c200"
-          : best === "steepUp"
-            ? "#e53935"
-            : best === "medDown"
-              ? "#fb8c00"
-              : "#c4a574";
-      html += `<span style="background:${bg};flex:1"></span>`;
-    }
-    return html;
   }
 
   function updateStats() {
@@ -362,7 +453,7 @@
     function apply() {
       viewW = Math.max(minW, Math.min(maxW, viewW));
       viewX = Math.max(0, Math.min(viewX, CHART_W - viewW));
-      svgEl.setAttribute("viewBox", `${viewX} 0 ${viewW} ${CHART_H}`);
+      svgEl.setAttribute("viewBox", `${viewX} 0 ${viewW} ${CHART_VB_H}`);
       updateXLabels();
       updateChartPinTransforms(svgEl);
       updateGridLineDash(svgEl);
@@ -415,7 +506,8 @@
       const gradeWrap = scrub?.querySelector(".info-scrub-grade-wrap");
       const sRow = scrub?.querySelector(".info-scrub-row--surface");
       const sText = scrub?.querySelector(".info-scrub-surface-text");
-      const wEl = scrub?.querySelector(".info-scrub-row--way");
+      const wRow = scrub?.querySelector(".info-scrub-row--way");
+      const wText = scrub?.querySelector(".info-scrub-way-text");
       const { surface, way } = surfaceWayAtKm(sample.km);
       if (tEl) tEl.textContent = fmtHoursFromKm(sample.km);
       if (dEl) dEl.textContent = fmtKm(sample.km);
@@ -431,7 +523,11 @@
         sRow.classList.toggle("info-scrub-row--surface--unpaved", surface === SURFACE_UNPAVED);
         sRow.classList.toggle("info-scrub-row--surface--paved", surface === SURFACE_PAVED);
       }
-      if (wEl) wEl.textContent = way;
+      if (wText) wText.textContent = way;
+      if (wRow) {
+        wRow.classList.toggle("info-scrub-row--way--pesina", way === WAY_PESINA);
+        wRow.classList.toggle("info-scrub-row--way--chodnik", way === WAY_CHODNIK);
+      }
     }
 
     function showScrubber(clientX) {
@@ -601,7 +697,7 @@
   document.querySelector(".scale-bar span:last-child").textContent = "50 km";
 
   const chartHost = document.querySelector(".profile-chart");
-  chartHost.innerHTML = `<svg id="elevationChart" viewBox="0 0 ${CHART_W} ${CHART_H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${buildChartSvg()}</svg>`;
+  chartHost.innerHTML = `<svg id="elevationChart" viewBox="0 0 ${CHART_W} ${CHART_VB_H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${buildChartSvg()}</svg>`;
   const chartSvg = document.getElementById("elevationChart");
   initChartZoom(chartSvg);
   if (chartHost && typeof ResizeObserver !== "undefined") {
@@ -612,7 +708,6 @@
     ro.observe(chartHost);
   }
 
-  document.querySelector(".surface-bar").innerHTML = buildSurfaceBar();
   updateStats();
   updateYLabels();
 })();
