@@ -71,29 +71,51 @@
         </div>
 
         <div class="info-grid">
-          <div class="info-item">
-            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M7 14l5-5 5 5H7z" />
-            </svg>
-            <span>1600 m n.m.</span>
+          <div class="info-grid-default">
+            <div class="info-item">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M7 14l5-5 5 5H7z" />
+              </svg>
+              <span>1600 m n.m.</span>
+            </div>
+            <div class="info-item">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M7 10l5 5 5-5H7z" />
+              </svg>
+              <span>100 m n.m.</span>
+            </div>
+            <div class="info-item">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z" />
+              </svg>
+              <span>5000 m</span>
+            </div>
+            <div class="info-item">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M16 18l2.29-2.29-4.88-4.88-4 4L2 7.41 3.41 6l6 6 4-4 6.3 6.29L22 12v6z" />
+              </svg>
+              <span>3600 m</span>
+            </div>
           </div>
-          <div class="info-item">
-            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M7 10l5 5 5-5H7z" />
-            </svg>
-            <span>100 m n.m.</span>
-          </div>
-          <div class="info-item">
-            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z" />
-            </svg>
-            <span>5000 m</span>
-          </div>
-          <div class="info-item">
-            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M16 18l2.29-2.29-4.88-4.88-4 4L2 7.41 3.41 6l6 6 4-4 6.3 6.29L22 12v6z" />
-            </svg>
-            <span>3600 m</span>
+          <div class="info-grid-scrub" aria-hidden="true">
+            <div class="info-scrub-row info-scrub-row--line1" role="group">
+              <span class="info-scrub-time"></span>
+              <span class="info-scrub-sep" aria-hidden="true">•</span>
+              <span class="info-scrub-dist"></span>
+              <span class="info-scrub-sep" aria-hidden="true">•</span>
+              <span class="info-scrub-elev"></span>
+              <span class="info-scrub-sep" aria-hidden="true">•</span>
+              <span class="info-scrub-grade-wrap">
+                <svg class="info-scrub-grade-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path
+                    d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"
+                  />
+                </svg>
+                <span class="info-scrub-grade"></span>
+              </span>
+            </div>
+            <p class="info-scrub-row info-scrub-row--surface"></p>
+            <p class="info-scrub-row info-scrub-row--way"></p>
           </div>
         </div>
 

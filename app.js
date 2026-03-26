@@ -92,17 +92,35 @@
     return (dh / route.stepKm / 1000) * 100;
   }
 
-  function kindLabelCs(k) {
-    if (k === "easyUp") return "mírné stoupání";
-    if (k === "steepUp") return "prudké stoupání";
-    if (k === "medDown") return "sestup";
-    return "rovinatý úsek";
-  }
-
   function fmtGrade(pct) {
     const r = Math.round(pct * 10) / 10;
     const sign = r > 0 ? "+" : "";
     return `${sign}${r.toLocaleString("cs-CZ")} %`;
+  }
+
+  /** Průměr 4 km/h → čas v hodinách; minuty jako desetinná část (např. 0,5 h). */
+  const SCRUB_AVG_KMH = 4;
+  const SURFACE_UNPAVED = "Nezpevněný povrch";
+  const SURFACE_PAVED = "Zpevněný povrch: kostky, štěrk/udusaný povrch";
+
+  function fmtHoursFromKm(km) {
+    const h = km / SCRUB_AVG_KMH;
+    const x = Math.round(h * 10) / 10;
+    const hasDec = Math.abs(x - Math.round(x)) > 1e-9;
+    const str = x.toLocaleString("cs-CZ", {
+      maximumFractionDigits: 1,
+      minimumFractionDigits: hasDec ? 1 : 0,
+    });
+    return `${str} h`;
+  }
+
+  /** Deterministické střídání povrchu podél km; druh komunikace podle povrchu. */
+  function surfaceWayAtKm(km) {
+    const paved = Math.floor(km / 2.5) % 2 === 1;
+    if (!paved) {
+      return { surface: SURFACE_UNPAVED, way: "Pěšina" };
+    }
+    return { surface: SURFACE_PAVED, way: "Chodník" };
   }
 
   function mapPointAlongRoute(t) {
@@ -254,7 +272,7 @@
   function updateStats() {
     const title = document.querySelector(".sheet-title");
     const sub = document.querySelector(".sheet-sub");
-    const items = document.querySelectorAll(".info-item span");
+    const items = document.querySelectorAll(".info-grid-default .info-item span");
     if (title) title.textContent = fmtKm(RD.ROUTE_KM);
     if (sub) sub.textContent = "12:45 h";
     if (items[0]) items[0].textContent = `${Math.round(RD.ELEV_MAX).toLocaleString("cs-CZ")} m n.m.`;
@@ -389,11 +407,26 @@
       scrubDot.setAttribute("data-cy", String(cy));
       updateChartPinTransforms(svgEl);
 
-      const items = document.querySelectorAll(".info-item span");
-      if (items[0]) items[0].textContent = fmtElev(sample.elev);
-      if (items[1]) items[1].textContent = fmtKm(sample.km);
-      if (items[2]) items[2].textContent = fmtGrade(sample.gradePct);
-      if (items[3]) items[3].textContent = kindLabelCs(sample.kind);
+      const scrub = document.querySelector(".info-grid-scrub");
+      const tEl = scrub?.querySelector(".info-scrub-time");
+      const dEl = scrub?.querySelector(".info-scrub-dist");
+      const eEl = scrub?.querySelector(".info-scrub-elev");
+      const gEl = scrub?.querySelector(".info-scrub-grade");
+      const gradeWrap = scrub?.querySelector(".info-scrub-grade-wrap");
+      const sEl = scrub?.querySelector(".info-scrub-row--surface");
+      const wEl = scrub?.querySelector(".info-scrub-row--way");
+      const { surface, way } = surfaceWayAtKm(sample.km);
+      if (tEl) tEl.textContent = fmtHoursFromKm(sample.km);
+      if (dEl) dEl.textContent = fmtKm(sample.km);
+      if (eEl) eEl.textContent = fmtElev(sample.elev);
+      if (gEl) gEl.textContent = fmtGrade(sample.gradePct);
+      if (gradeWrap) {
+        gradeWrap.classList.remove("info-scrub-grade-wrap--steep-up", "info-scrub-grade-wrap--med-down");
+        if (sample.kind === "steepUp") gradeWrap.classList.add("info-scrub-grade-wrap--steep-up");
+        else if (sample.kind === "medDown") gradeWrap.classList.add("info-scrub-grade-wrap--med-down");
+      }
+      if (sEl) sEl.textContent = surface;
+      if (wEl) wEl.textContent = way;
     }
 
     function showScrubber(clientX) {
@@ -401,6 +434,8 @@
       scrubberG.setAttribute("visibility", "visible");
       scrubberG.setAttribute("aria-hidden", "false");
       if (infoGrid) infoGrid.classList.add("info-grid--scrub");
+      const scrubPanel = document.querySelector(".info-grid-scrub");
+      if (scrubPanel) scrubPanel.setAttribute("aria-hidden", "false");
       if (chartHost) {
         chartHost.setAttribute("aria-label", "Výškový profil trasy, výběr bodu podle pozice");
       }
@@ -413,6 +448,8 @@
       scrubberG.setAttribute("visibility", "hidden");
       scrubberG.setAttribute("aria-hidden", "true");
       if (infoGrid) infoGrid.classList.remove("info-grid--scrub");
+      const scrubPanel = document.querySelector(".info-grid-scrub");
+      if (scrubPanel) scrubPanel.setAttribute("aria-hidden", "true");
       if (chartHost) {
         chartHost.setAttribute(
           "aria-label",

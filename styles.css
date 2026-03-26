@@ -200,12 +200,25 @@ body {
   height: 24px;
 }
 
+/* Výchozí mřížka ~56px; při scrub 60px + mezery 2px mezi řádky — kompenzováno marginy (viz níže), aby se bottom sheet neprodlužoval */
 .info-grid {
+  margin-top: 14px;
+  max-width: 345px;
+  height: 56px;
+  overflow: hidden;
+}
+
+.info-grid.info-grid--scrub {
+  height: 60px;
+  margin-top: 12px;
+}
+
+.info-grid-default {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 14px;
-  max-width: 345px;
+  align-content: flex-start;
+  height: 100%;
 }
 
 .info-item {
@@ -226,9 +239,93 @@ body {
   flex-shrink: 0;
 }
 
-/* Hodnoty při výběru bodu na grafu (scrubber) */
-.info-grid--scrub .info-item span {
-  font-weight: 700;
+.info-grid-scrub {
+  display: none;
+  flex-direction: column;
+  justify-content: flex-start;
+  height: 100%;
+  gap: 2px;
+}
+
+.info-grid--scrub .info-grid-default {
+  display: none;
+}
+
+.info-grid--scrub .info-grid-scrub {
+  display: flex;
+}
+
+/* 3 řádky: 22 + 2 + 17 + 2 + 17 = 60px; 14px regular */
+.info-scrub-row--line1 {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px 6px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+  min-height: 22px;
+  max-height: 22px;
+  color: var(--primary);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.info-scrub-row--line1 > span:not(.info-scrub-sep) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.info-scrub-grade-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  flex-shrink: 1;
+  overflow: hidden;
+  color: inherit;
+}
+
+.info-scrub-grade-wrap .info-scrub-grade {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.info-scrub-grade-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+/* Prudké stoupání i klesání — červená jako steepUp v grafu (#e53935); ikona i % přes currentColor */
+.info-scrub-grade-wrap--steep-up,
+.info-scrub-grade-wrap--med-down {
+  color: #e53935;
+}
+
+.info-scrub-sep {
+  color: #000;
+  font-weight: 400;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.info-scrub-row--surface,
+.info-scrub-row--way {
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 17px;
+  min-height: 17px;
+  max-height: 17px;
+  color: var(--primary);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* Elevation profile — Figma: 20px pod statistikami (142 − 122) */
@@ -238,6 +335,11 @@ body {
   max-width: 345px;
   height: 125px;
   position: relative;
+}
+
+/* −2px oproti výchozímu 20px při scrub = +2px „dolů“ k grafu bez prodloužení sheetu */
+.info-grid.info-grid--scrub + .profile-wrap {
+  margin-top: 18px;
 }
 
 /* Osa Y překrývá začátek grafu; začátek textu = levý okraj ikon v .info-item */
