@@ -103,6 +103,25 @@
   const SURFACE_UNPAVED = "Nezpevněný povrch";
   const SURFACE_PAVED = "Zpevněný povrch: kostky, štěrk/udusaný povrch";
 
+  /** Stejné dlaždice jako ve Figma — výplň scrub pruhu v grafu + náhled v sheetu. */
+  const SURFACE_PATTERN_PAVED = `
+    <pattern id="surfacePaved" patternUnits="userSpaceOnUse" width="16" height="8">
+      <path d="M0 4H16" stroke="#0033FF" stroke-width="8" stroke-linejoin="bevel"/>
+      <path d="M0 4H16" stroke="#99ADFF" stroke-width="4" stroke-linejoin="bevel" stroke-dasharray="6 4"/>
+    </pattern>`;
+  const SURFACE_PATTERN_UNPAVED = `
+    <pattern id="surfaceUnpaved" patternUnits="userSpaceOnUse" width="16" height="8">
+      <path d="M0 4H16" stroke="#99ADFF" stroke-width="8" stroke-linejoin="bevel"/>
+      <path d="M0 4H16" stroke="#0033FF" stroke-width="4" stroke-linejoin="bevel" stroke-dasharray="6 4"/>
+    </pattern>`;
+
+  const SWATCH_PAVED_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="14" viewBox="0 0 16 8" fill="none" aria-hidden="true"><path d="M0 4H16" stroke="#0033FF" stroke-width="8" stroke-linejoin="bevel"/><path d="M0 4H16" stroke="#99ADFF" stroke-width="4" stroke-linejoin="bevel" stroke-dasharray="6 4"/></svg>`;
+  const SWATCH_UNPAVED_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="14" viewBox="0 0 16 8" fill="none" aria-hidden="true"><path d="M0 4H16" stroke="#99ADFF" stroke-width="8" stroke-linejoin="bevel"/><path d="M0 4H16" stroke="#0033FF" stroke-width="4" stroke-linejoin="bevel" stroke-dasharray="6 4"/></svg>`;
+
+  function isPavedAtKm(km) {
+    return Math.floor(km / 2.5) % 2 === 1;
+  }
+
   function fmtHoursFromKm(km) {
     const h = km / SCRUB_AVG_KMH;
     const x = Math.round(h * 10) / 10;
@@ -116,7 +135,7 @@
 
   /** Deterministické střídání povrchu podél km; druh komunikace podle povrchu. */
   function surfaceWayAtKm(km) {
-    const paved = Math.floor(km / 2.5) % 2 === 1;
+    const paved = isPavedAtKm(km);
     if (!paved) {
       return { surface: SURFACE_UNPAVED, way: "Pěšina" };
     }
@@ -229,6 +248,8 @@
           <stop offset="55%" stop-color="rgba(26,108,255,0.06)"/>
           <stop offset="100%" stop-color="rgba(26,108,255,0.02)"/>
         </linearGradient>
+        ${SURFACE_PATTERN_PAVED}
+        ${SURFACE_PATTERN_UNPAVED}
       </defs>
       ${yGrid.join("")}
       <path d="${fillD}" fill="url(#chartFillGrad)"/>
@@ -344,7 +365,7 @@
     scrubberG.setAttribute("visibility", "hidden");
     scrubberG.setAttribute("aria-hidden", "true");
     scrubberG.innerHTML = `
-      <rect class="chart-scrubber-fill" fill="rgba(26,108,255,0.14)" />
+      <rect class="chart-scrubber-fill" fill="url(#surfaceUnpaved)" fill-opacity="0.42" />
       <line class="chart-scrubber-line" y2="${CHART_H}" stroke="#1a6cff" stroke-opacity="0.45" stroke-width="0.9" stroke-linecap="round" />
       <g class="chart-scrubber-dot" data-cx="0" data-cy="0">
         <circle r="5.5" fill="#1a6cff" stroke="#fff" stroke-width="2" />
@@ -397,6 +418,9 @@
       scrubFill.setAttribute("y", "0");
       scrubFill.setAttribute("width", String(sw));
       scrubFill.setAttribute("height", String(cy));
+      const paved = isPavedAtKm(sample.km);
+      scrubFill.setAttribute("fill", paved ? "url(#surfacePaved)" : "url(#surfaceUnpaved)");
+      scrubFill.setAttribute("fill-opacity", "0.42");
 
       scrubLine.setAttribute("x1", String(cx));
       scrubLine.setAttribute("x2", String(cx));
@@ -413,7 +437,8 @@
       const eEl = scrub?.querySelector(".info-scrub-elev");
       const gEl = scrub?.querySelector(".info-scrub-grade");
       const gradeWrap = scrub?.querySelector(".info-scrub-grade-wrap");
-      const sEl = scrub?.querySelector(".info-scrub-row--surface");
+      const surfaceLabel = scrub?.querySelector(".info-scrub-surface-label");
+      const surfaceSwatch = scrub?.querySelector(".info-scrub-surface-swatch");
       const wEl = scrub?.querySelector(".info-scrub-row--way");
       const { surface, way } = surfaceWayAtKm(sample.km);
       if (tEl) tEl.textContent = fmtHoursFromKm(sample.km);
@@ -425,7 +450,8 @@
         if (sample.kind === "steepUp") gradeWrap.classList.add("info-scrub-grade-wrap--steep-up");
         else if (sample.kind === "medDown") gradeWrap.classList.add("info-scrub-grade-wrap--med-down");
       }
-      if (sEl) sEl.textContent = surface;
+      if (surfaceLabel) surfaceLabel.textContent = surface;
+      if (surfaceSwatch) surfaceSwatch.innerHTML = paved ? SWATCH_PAVED_SVG : SWATCH_UNPAVED_SVG;
       if (wEl) wEl.textContent = way;
     }
 
