@@ -138,7 +138,7 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  min-height: 291px;
+  min-height: 314px;
   padding: 24px 24px calc(24px + env(safe-area-inset-bottom, 0));
   background: #fff;
   border-radius: 28px 28px 0 0;
@@ -399,7 +399,7 @@ body {
 
 /* Elevation profile — Figma: 20px pod statistikami (142 − 122) */
 .profile-wrap {
-  --profile-chart-h: 108px;
+  --profile-chart-h: 131px;
   --profile-x-labels-h: 24px;
   margin-top: 20px;
   width: 100%;
