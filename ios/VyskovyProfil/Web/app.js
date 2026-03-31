@@ -29,11 +29,29 @@
       <circle cx="12" cy="9" r="2.2" fill="#fff"/>
     </g>`;
 
-  const pinSheet = `
-    <g class="stop-pin stop-pin--sheet">
-      <circle cx="0" cy="0" r="7" fill="#1a6cff" stroke="#fff" stroke-width="2"/>
-      <circle cx="0" cy="0" r="2.5" fill="#fff"/>
+  /** Zastávky — Figma 1849:105060: kruh primary, číslo uvnitř. Střed kruhu na y=0 = první horizontála chart-grid-line. */
+  /** Jednočíslí: víc odstupu; dvojčíslí: těsně k obvodu (referenční „namáčknutý“ vzhled). */
+  const CHART_STOP_R_1 = 9;
+  const CHART_STOP_R_2 = 7.35;
+  /** Zastávky mají střed na y=0; viewBox začíná pod nulou, ať není oříznutá horní polovina kruhu. */
+  const CHART_VB_MIN_Y = -CHART_STOP_R_1;
+  const CHART_VB_OUTER_H = CHART_VB_H - CHART_VB_MIN_Y;
+  /** Stejná velikost jako .profile-y-labels (12px); na obrazovce ji drží updateChartPinTransforms přes scale(vb.h/rect.h). */
+  const CHART_STOP_FONT = 12;
+
+  function chartStopRadius(order1Based) {
+    return order1Based >= 10 ? CHART_STOP_R_2 : CHART_STOP_R_1;
+  }
+
+  function stopBadgeSvg(order1Based, r) {
+    const n = String(order1Based);
+    return `<g class="stop-pin stop-pin--sheet">
+      <circle cx="0" cy="0" r="${r}" fill="#011E39"/>
+      <g class="chart-stop-label-scale">
+        <text x="0" y="0" text-anchor="middle" dominant-baseline="central" fill="#ffffff" font-family="Roboto,sans-serif" font-size="${CHART_STOP_FONT}" font-weight="700">${n}</text>
+      </g>
     </g>`;
+  }
 
   function elevToY(e) {
     const lo = RD.ELEV_AXIS_MIN;
@@ -346,11 +364,12 @@
     });
 
     let stopG = "";
-    for (const si of stops) {
+    stops.forEach((si, ord) => {
+      const num = ord + 1;
+      const r = chartStopRadius(num);
       const sx = xs(si);
-      const sy = ys(si);
-      stopG += `<g class="chart-pin" data-cx="${sx.toFixed(2)}" data-cy="${sy.toFixed(2)}" transform="translate(${sx.toFixed(2)},${sy.toFixed(2)}) scale(1,1)">${pinSheet}</g>`;
-    }
+      stopG += `<g class="chart-stop" data-cx="${sx.toFixed(2)}" data-cy="0" transform="translate(${sx.toFixed(2)},0)">${stopBadgeSvg(num, r)}</g>`;
+    });
 
     return `
       <defs>
@@ -411,7 +430,7 @@
     });
   }
 
-  /** Kompensuje preserveAspectRatio="none" — špendlíky zůstanou kruhové při libovolném zoomu. */
+  /** Kompensuje preserveAspectRatio="none" — kulové značky a čitelná čísla při libovolném zoomu. */
   function updateChartPinTransforms(svgEl) {
     if (!svgEl) return;
     const vb = svgEl.viewBox && svgEl.viewBox.baseVal;
@@ -419,11 +438,18 @@
     const rect = svgEl.getBoundingClientRect();
     if (rect.width < 1 || rect.height < 1) return;
     const k = (rect.height * vb.width) / (rect.width * vb.height);
-    svgEl.querySelectorAll(".chart-pin").forEach((g) => {
+    /*
+     * Číslo: font-size v user jednotkách × scale(vb.h/rect.h) × root má dát ~stejné CSS px jako labely osy Y.
+     * (ik×zoomComp se matematicky rušilo s k a scalo číslo z ~12 na ~2 px — viz odvození sy/k.)
+     */
+    const labelTs = vb.height / rect.height;
+    svgEl.querySelectorAll(".chart-stop").forEach((g) => {
       const cx = parseFloat(g.getAttribute("data-cx"), 10);
       const cy = parseFloat(g.getAttribute("data-cy"), 10);
       if (Number.isFinite(cx) && Number.isFinite(cy)) {
         g.setAttribute("transform", `translate(${cx},${cy}) scale(${k},1)`);
+        const lbl = g.querySelector(".chart-stop-label-scale");
+        if (lbl) lbl.setAttribute("transform", `scale(${labelTs},${labelTs})`);
       }
     });
     const dot = svgEl.querySelector(".chart-scrubber-dot");
@@ -466,7 +492,7 @@
     function apply() {
       viewW = Math.max(minW, Math.min(maxW, viewW));
       viewX = Math.max(0, Math.min(viewX, CHART_W - viewW));
-      svgEl.setAttribute("viewBox", `${viewX} 0 ${viewW} ${CHART_VB_H}`);
+      svgEl.setAttribute("viewBox", `${viewX} ${CHART_VB_MIN_Y} ${viewW} ${CHART_VB_OUTER_H}`);
       updateXLabels();
       updateChartPinTransforms(svgEl);
       updateGridLineDash(svgEl);
@@ -711,7 +737,7 @@
   document.querySelector(".scale-bar span:last-child").textContent = "50 km";
 
   const chartHost = document.querySelector(".profile-chart");
-  chartHost.innerHTML = `<svg id="elevationChart" viewBox="0 0 ${CHART_W} ${CHART_VB_H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${buildChartSvg()}</svg>`;
+  chartHost.innerHTML = `<svg id="elevationChart" viewBox="0 ${CHART_VB_MIN_Y} ${CHART_W} ${CHART_VB_OUTER_H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${buildChartSvg()}</svg>`;
   const chartSvg = document.getElementById("elevationChart");
   initChartZoom(chartSvg);
   if (chartHost && typeof ResizeObserver !== "undefined") {
