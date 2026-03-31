@@ -30,18 +30,17 @@
     </g>`;
 
   /** Zastávky — Figma 1849:105060: kruh primary, číslo uvnitř. Střed kruhu na y=0 = první horizontála chart-grid-line. */
-  /** Jednočíslí: víc odstupu; dvojčíslí: těsně k obvodu (referenční „namáčknutý“ vzhled). */
-  const CHART_STOP_R_1 = 9;
-  const CHART_STOP_R_2 = 7.35;
+  /** Jeden poloměr pro všechny zastávky (stejný vizuál jako dřív u dvojčíslí). */
+  const CHART_STOP_R = 7.35;
   /** Zastávky mají střed na y=0; viewBox začíná pod nulou, ať není oříznutá horní polovina kruhu. */
-  const CHART_VB_MIN_Y = -CHART_STOP_R_1;
+  const CHART_VB_MIN_Y = -CHART_STOP_R;
   const CHART_VB_OUTER_H = CHART_VB_H - CHART_VB_MIN_Y;
+  /** Nejmenší šířka viewBoxu při pinch kolečku — zároveň „max. přiblížení“, kde se ředění zastávek vypíná. */
+  const CHART_ZOOM_MIN_W = 80;
+  /** Minimální horizontální mezera mezi kruhy zastávek při ředění (v CSS px na šířku grafu). */
+  const CHART_STOP_THIN_GAP_PX = 2;
   /** Stejná velikost jako .profile-y-labels (12px); na obrazovce ji drží updateChartPinTransforms přes scale(vb.h/rect.h). */
   const CHART_STOP_FONT = 12;
-
-  function chartStopRadius(order1Based) {
-    return order1Based >= 10 ? CHART_STOP_R_2 : CHART_STOP_R_1;
-  }
 
   function stopBadgeSvg(order1Based, r) {
     const n = String(order1Based);
@@ -366,9 +365,9 @@
     let stopG = "";
     stops.forEach((si, ord) => {
       const num = ord + 1;
-      const r = chartStopRadius(num);
+      const r = CHART_STOP_R;
       const sx = xs(si);
-      stopG += `<g class="chart-stop" data-cx="${sx.toFixed(2)}" data-cy="0" transform="translate(${sx.toFixed(2)},0)">${stopBadgeSvg(num, r)}</g>`;
+      stopG += `<g class="chart-stop" data-cx="${sx.toFixed(2)}" data-cy="0" data-order="${num}" data-r="${r}" transform="translate(${sx.toFixed(2)},0)">${stopBadgeSvg(num, r)}</g>`;
     });
 
     return `
@@ -430,6 +429,59 @@
     });
   }
 
+  /**
+   * Při zoomu < max: skrýt zastávky tak, aby se kruhy vodorovně nepřekrývaly; vyšší číslo má přednost.
+   * Při viewW === CHART_ZOOM_MIN_W (max. přiblížení) se nic neskrývá — překryvy povoleny.
+   */
+  function updateChartStopVisibility(svgEl, vb, rect, k) {
+    const viewX = vb.x;
+    const viewW = vb.width;
+    const nodes = svgEl.querySelectorAll(".chart-stop");
+    if (!nodes.length) return;
+    if (viewW <= CHART_ZOOM_MIN_W) {
+      nodes.forEach((g) => g.removeAttribute("display"));
+      return;
+    }
+    const viewLeft = viewX;
+    const viewRight = viewX + viewW;
+    const fudge = (CHART_STOP_THIN_GAP_PX / rect.width) * viewW;
+    const items = [...nodes]
+      .map((g) => ({
+        g,
+        cx: parseFloat(g.getAttribute("data-cx"), 10),
+        order: parseInt(g.getAttribute("data-order"), 10),
+        r: parseFloat(g.getAttribute("data-r"), 10),
+      }))
+      .filter((s) => Number.isFinite(s.cx) && Number.isFinite(s.order) && Number.isFinite(s.r));
+
+    function inViewX(s) {
+      return s.cx + k * s.r >= viewLeft && s.cx - k * s.r <= viewRight;
+    }
+
+    const inBand = items.filter(inViewX);
+    inBand.sort((a, b) => b.order - a.order);
+    const kept = [];
+    for (const s of inBand) {
+      let conflict = false;
+      for (const t of kept) {
+        if (Math.abs(s.cx - t.cx) < k * (s.r + t.r) + fudge) {
+          conflict = true;
+          break;
+        }
+      }
+      if (!conflict) kept.push(s);
+    }
+    const keepSet = new Set(kept.map((s) => s.order));
+    for (const s of items) {
+      if (!inViewX(s)) {
+        s.g.removeAttribute("display");
+        continue;
+      }
+      if (keepSet.has(s.order)) s.g.removeAttribute("display");
+      else s.g.setAttribute("display", "none");
+    }
+  }
+
   /** Kompensuje preserveAspectRatio="none" — kulové značky a čitelná čísla při libovolném zoomu. */
   function updateChartPinTransforms(svgEl) {
     if (!svgEl) return;
@@ -452,6 +504,7 @@
         if (lbl) lbl.setAttribute("transform", `scale(${labelTs},${labelTs})`);
       }
     });
+    updateChartStopVisibility(svgEl, vb, rect, k);
     const dot = svgEl.querySelector(".chart-scrubber-dot");
     if (dot) {
       const cx = parseFloat(dot.getAttribute("data-cx"), 10);
@@ -465,7 +518,6 @@
   function initChartZoom(svgEl) {
     let viewX = 0;
     let viewW = CHART_W;
-    const minW = 80;
     const maxW = CHART_W;
 
     const scrubberG = document.createElementNS("http://www.w3.org/2000/svg", "g");
@@ -490,7 +542,7 @@
     let scrubActive = false;
 
     function apply() {
-      viewW = Math.max(minW, Math.min(maxW, viewW));
+      viewW = Math.max(CHART_ZOOM_MIN_W, Math.min(maxW, viewW));
       viewX = Math.max(0, Math.min(viewX, CHART_W - viewW));
       svgEl.setAttribute("viewBox", `${viewX} ${CHART_VB_MIN_Y} ${viewW} ${CHART_VB_OUTER_H}`);
       updateXLabels();
@@ -635,7 +687,7 @@
           const worldMid = pinch0.viewX + ((pinch0.midX - rect.left) / rect.width) * pinch0.viewW;
           const scale = dist / pinch0.dist;
           let newW = pinch0.viewW / scale;
-          newW = Math.max(minW, Math.min(CHART_W, newW));
+          newW = Math.max(CHART_ZOOM_MIN_W, Math.min(CHART_W, newW));
           let newX = worldMid - ((midX - rect.left) / rect.width) * newW;
           newX = Math.max(0, Math.min(CHART_W - newW, newX));
           viewW = newW;
@@ -707,7 +759,7 @@
         const worldX = clientToWorldX(e.clientX, rect);
         const zoomFactor = e.deltaY > 0 ? 1.08 : 1 / 1.08;
         let newW = viewW * zoomFactor;
-        newW = Math.max(minW, Math.min(CHART_W, newW));
+        newW = Math.max(CHART_ZOOM_MIN_W, Math.min(CHART_W, newW));
         let newX = worldX - ((worldX - viewX) / viewW) * newW;
         newX = Math.max(0, Math.min(CHART_W - newW, newX));
         viewW = newW;
