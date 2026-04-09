@@ -16,14 +16,6 @@
   <body>
     <div class="screen">
       <div class="map-area" aria-hidden="true">
-        <img
-          class="map-area__photo"
-          src="assets/map-route-figma.png"
-          alt=""
-          width="1179"
-          height="2556"
-          decoding="async"
-        />
         <div class="scale-bar">
           <span>0</span>
           <div class="scale-bar__line"></div>
@@ -56,10 +48,16 @@
       </div>
 
       <section class="bottom-sheet" aria-label="Statistiky trasy">
-        <div class="sheet-drag" aria-hidden="true">
-          <span class="sheet-drag-handle"></span>
-        </div>
         <div class="sheet-actions">
+          <button type="button" class="sheet-icon-btn" aria-label="Rozšířit">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path
+                fill="currentColor"
+                fill-opacity="0.6"
+                d="M12 22L6 16L7.425 14.575L12 19.15L16.575 14.575L18 16L12 22ZM7.45 9.4L6 8L12 2L18 8L16.55 9.4L12 4.85L7.45 9.4Z"
+              />
+            </svg>
+          </button>
           <button type="button" class="sheet-icon-btn" aria-label="Zavřít">
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <g transform="translate(6.0494 6.0494)">

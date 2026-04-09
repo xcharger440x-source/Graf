@@ -23,101 +23,17 @@
     gridHOpacity: "0.26",
   };
 
-  /** Figma 1978:22201 / 22216 — velká špendlík 48×66 (#CC0000). */
-  const MAP_PIN_LARGE_D =
-    "M4.6995 38.268L24 66L43.3005 38.268H43.2675C46.2285 34.2765 48 29.352 48 24C48 10.7445 37.2555 0 24 0C10.7445 0 0 10.7445 0 24C0 29.352 1.773 34.2765 4.7325 38.268H4.6995Z";
-  /** Figma 1978:22221 — malá špendlík 32×44. */
-  const MAP_PIN_SMALL_D =
-    "M3.133 25.512L16 44L28.867 25.512H28.845C30.819 22.851 32 19.568 32 16C32 7.163 24.837 0 16 0C7.163 0 0 7.163 0 16C0 19.568 1.182 22.851 3.155 25.512H3.133Z";
-  const MAP_PIN_WHITE_CIRCLE_D =
-    "M44 22C44 9.84971 34.1503 0 22 0C9.84971 0 0 9.84971 0 22C0 34.1503 9.84971 44 22 44C34.1503 44 44 34.1503 44 22";
-
-  const MAP_CTRL_PTS = [
-    [32, 28],
-    [72, 52],
-    [120, 78],
-    [168, 118],
-    [210, 168],
-    [248, 218],
-    [278, 268],
-    [300, 318],
-  ];
-
-  function buildMapArcLength(ctrl) {
-    const pts = ctrl;
-    const n = pts.length;
-    const cum = [0];
-    let total = 0;
-    for (let i = 0; i < n - 1; i++) {
-      const dx = pts[i + 1][0] - pts[i][0];
-      const dy = pts[i + 1][1] - pts[i][1];
-      total += Math.hypot(dx, dy);
-      cum.push(total);
-    }
-    return { pts, cum, total };
-  }
-
-  /**
-   * Bod na vizuální trase v mapovém viewBoxu — podíl ujetých km (0…1) jako na ose X grafu
-   * (distKm[i]/ROUTE_KM = i/(N−1); zastávky stejně jako chart-stop na distToX(distKm[si])).
-   */
-  function mapPointAtKmFraction(arc, f) {
-    const { pts, cum, total } = arc;
-    let t = Math.max(0, Math.min(1, f));
-    if (total < 1e-9) return [pts[0][0], pts[0][1]];
-    const target = t * total;
-    let j = 0;
-    while (j < cum.length - 1 && cum[j + 1] < target) j++;
-    const segStart = cum[j];
-    const segEnd = cum[j + 1];
-    const segLen = segEnd - segStart;
-    const u = segLen < 1e-12 ? 0 : (target - segStart) / segLen;
-    const ax = pts[j][0];
-    const ay = pts[j][1];
-    const bx = pts[j + 1][0];
-    const by = pts[j + 1][1];
-    return [ax + (bx - ax) * u, ay + (by - ay) * u];
-  }
-
-  function mapEndpointMarker(label) {
-    return `<g class="map-marker map-marker--endpoint">
-      <path fill="#CC0000" d="${MAP_PIN_LARGE_D}"/>
-      <path fill="#FFFFFF" d="${MAP_PIN_WHITE_CIRCLE_D}" transform="translate(2,2)"/>
-      <text x="24" y="26" text-anchor="middle" dominant-baseline="middle" fill="#484848" font-family="Roboto,sans-serif" font-size="10" font-weight="700">${label}</text>
+  const pinMap = `
+    <g class="stop-pin stop-pin--map">
+      <path fill="#c62828" d="M12 2C8.1 2 5 5.2 5 9.1c0 5.5 7 10.9 7 10.9s7-5.4 7-10.9C19 5.2 15.9 2 12 2zm0 12.2c-2.1 0-3.8-1.7-3.8-3.8S9.9 6.6 12 6.6s3.8 1.7 3.8 3.8-1.7 3.8-3.8 3.8z"/>
+      <circle cx="12" cy="9" r="2.2" fill="#fff"/>
     </g>`;
-  }
 
-  function mapStopMarker(order1Based) {
-    const n = String(order1Based);
-    return `<g class="map-marker map-marker--stop">
-      <path fill="#CC0000" d="${MAP_PIN_SMALL_D}"/>
-      <circle cx="16" cy="15" r="13" fill="#FFFFFF"/>
-      <text x="16" y="15.5" text-anchor="middle" dominant-baseline="middle" fill="#484848" font-family="Roboto,sans-serif" font-size="13" font-weight="700">${n}</text>
+  const pinSheet = `
+    <g class="stop-pin stop-pin--sheet">
+      <circle cx="0" cy="0" r="7" fill="#1a6cff" stroke="#fff" stroke-width="2"/>
+      <circle cx="0" cy="0" r="2.5" fill="#fff"/>
     </g>`;
-  }
-
-  /** Zastávky — Figma 1849:105060: kruh primary, číslo uvnitř. Střed kruhu na y=0 = první horizontála chart-grid-line. */
-  /** Jeden poloměr pro všechny zastávky (stejný vizuál jako dřív u dvojčíslí). */
-  const CHART_STOP_R = 7.35;
-  /** Zastávky mají střed na y=0; viewBox začíná pod nulou, ať není oříznutá horní polovina kruhu. */
-  const CHART_VB_MIN_Y = -CHART_STOP_R;
-  const CHART_VB_OUTER_H = CHART_VB_H - CHART_VB_MIN_Y;
-  /** Nejmenší šířka viewBoxu při pinch kolečku — zároveň „max. přiblížení“, kde se ředění zastávek vypíná. */
-  const CHART_ZOOM_MIN_W = 80;
-  /** Minimální horizontální mezera mezi kruhy zastávek při ředění (v CSS px na šířku grafu). */
-  const CHART_STOP_THIN_GAP_PX = 2;
-  /** Stejná velikost jako .profile-y-labels (12px); na obrazovce ji drží updateChartPinTransforms přes scale(vb.h/rect.h). */
-  const CHART_STOP_FONT = 12;
-
-  function stopBadgeSvg(order1Based, r) {
-    const n = String(order1Based);
-    return `<g class="stop-pin stop-pin--sheet">
-      <circle cx="0" cy="0" r="${r}" fill="#011E39"/>
-      <g class="chart-stop-label-scale">
-        <text x="0" y="0" text-anchor="middle" dominant-baseline="central" fill="#ffffff" font-family="Roboto,sans-serif" font-size="${CHART_STOP_FONT}" font-weight="700">${n}</text>
-      </g>
-    </g>`;
-  }
 
   function elevToY(e) {
     const lo = RD.ELEV_AXIS_MIN;
@@ -255,32 +171,44 @@
     return { surface: SURFACE_PAVED, way: WAY_CHODNIK };
   }
 
+  function mapPointAlongRoute(t) {
+    const pts = [
+      [32, 28],
+      [72, 52],
+      [120, 78],
+      [168, 118],
+      [210, 168],
+      [248, 218],
+      [278, 268],
+      [300, 318],
+    ];
+    const seg = (pts.length - 1) * t;
+    const i = Math.min(pts.length - 2, Math.floor(seg));
+    const u = seg - i;
+    const x = pts[i][0] + (pts[i + 1][0] - pts[i][0]) * u;
+    const y = pts[i][1] + (pts[i + 1][1] - pts[i][1]) * u;
+    return [x, y];
+  }
+
   function buildMapSvg() {
-    const { distKm, stops } = route;
+    const { distKm, elev, stops } = route;
     const n = distKm.length;
-    const arc = buildMapArcLength(MAP_CTRL_PTS);
     let d = "";
     for (let i = 0; i < n; i++) {
-      const f = distKm[i] / RD.ROUTE_KM;
-      const [x, y] = mapPointAtKmFraction(arc, f);
-      d += (i === 0 ? "M" : "L") + ` ${x.toFixed(2)} ${y.toFixed(2)} `;
+      const t = distKm[i] / RD.ROUTE_KM;
+      const [x, y] = mapPointAlongRoute(t);
+      d += (i === 0 ? "M" : "L") + ` ${x.toFixed(1)} ${y.toFixed(1)} `;
     }
 
-    const [sx, sy] = mapPointAtKmFraction(arc, 0);
-    const [ex, ey] = mapPointAtKmFraction(arc, 1);
-    const [bx, by] = mapPointAtKmFraction(arc, 0.5);
+    const bubble = mapPointAlongRoute(0.42);
+    const endPt = mapPointAlongRoute(1);
 
-    let stopMarkers = "";
-    stops.forEach((si, ord) => {
-      const f = distKm[si] / RD.ROUTE_KM;
-      const [mx, my] = mapPointAtKmFraction(arc, f);
-      stopMarkers += `<g transform="translate(${(mx - 16).toFixed(2)},${(my - 44).toFixed(2)})">${mapStopMarker(
-        ord + 1
-      )}</g>`;
-    });
-
-    const kmLabel = fmtKm(RD.ROUTE_KM);
-    const timeLabel = "12:45 h";
+    let markers = "";
+    for (const si of stops) {
+      const t = distKm[si] / RD.ROUTE_KM;
+      const [mx, my] = mapPointAlongRoute(t);
+      markers += `<g transform="translate(${(mx - 12).toFixed(1)},${(my - 20).toFixed(1)})">${pinMap}</g>`;
+    }
 
     return `
       <svg viewBox="0 0 ${MAP_VB.w} ${MAP_VB.h}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
@@ -292,14 +220,20 @@
         </defs>
         <path d="${d.trim()}" fill="none" stroke="${COL.neutral}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" opacity="0.25"/>
         <path d="${d.trim()}" fill="none" stroke="${COL.neutral}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="14 10" filter="url(#routeGlow)"/>
-        <g transform="translate(${(sx - 24).toFixed(2)},${(sy - 66).toFixed(2)})">${mapEndpointMarker("START")}</g>
-        <g transform="translate(${(ex - 24).toFixed(2)},${(ey - 66).toFixed(2)})">${mapEndpointMarker("CÍL")}</g>
-        ${stopMarkers}
-        <g transform="translate(${bx.toFixed(2)},${by.toFixed(2)})" class="map-route-bubble">
-          <rect x="-56" y="-54" width="112" height="46" rx="8" fill="${COL.neutral}"/>
-          <text x="0" y="-32" text-anchor="middle" fill="#ffffff" font-family="Roboto,sans-serif" font-size="12" font-weight="700">${kmLabel}</text>
-          <text x="0" y="-16" text-anchor="middle" fill="#ffffff" font-family="Roboto,sans-serif" font-size="11" font-weight="400">${timeLabel}</text>
-          <polygon points="0,0 -9,-8 9,-8" fill="${COL.neutral}"/>
+        <g transform="translate(32,28)">
+          <rect x="-14" y="-22" width="56" height="28" rx="6" fill="#fff" stroke="#c62828" stroke-width="2"/>
+          <text x="14" y="-4" text-anchor="middle" font-size="11" fill="#011e39" font-family="Roboto,sans-serif">Start</text>
+        </g>
+        <g transform="translate(${endPt[0].toFixed(1)},${endPt[1].toFixed(1)})">
+          <circle r="14" fill="#fff" stroke="#c62828" stroke-width="2"/>
+          <path d="M-6 2 L0 -8 L6 2 Z" fill="#011e39"/>
+        </g>
+        ${markers}
+        <g transform="translate(${bubble[0].toFixed(1)},${(bubble[1] - 36).toFixed(1)})">
+          <rect x="-52" y="-36" width="104" height="40" rx="6" fill="${COL.neutral}"/>
+          <text x="0" y="-18" text-anchor="middle" fill="#fff" font-size="11" font-family="Roboto,sans-serif">12:45 h</text>
+          <text x="0" y="-4" text-anchor="middle" fill="#fff" font-size="11" font-family="Roboto,sans-serif">150 km</text>
+          <polygon points="0,6 -6,-2 6,-2" fill="${COL.neutral}"/>
         </g>
       </svg>`;
   }
@@ -322,7 +256,7 @@
     const COL_SURF_PV_BACK = "#0033ff";
     const COL_SURF_PV_FRONT = "#99adff";
 
-    /* Polyline přes uzly trasy — stejné sklony jako výpočet v route-data (bez splinů, ty překmitávaly a „bouchaly“ sklon). */
+    /* Polyline přes uzly trasy — stejné sklony jako výpočet v route-data (bez splinů). */
     let lineD = `M ${xs(0).toFixed(2)} ${ys(0).toFixed(2)}`;
     for (let pi = 1; pi < n; pi++) {
       lineD += ` L ${xs(pi).toFixed(2)} ${ys(pi).toFixed(2)}`;
@@ -412,12 +346,11 @@
     });
 
     let stopG = "";
-    stops.forEach((si, ord) => {
-      const num = ord + 1;
-      const r = CHART_STOP_R;
+    for (const si of stops) {
       const sx = xs(si);
-      stopG += `<g class="chart-stop" data-cx="${sx.toFixed(2)}" data-cy="0" data-order="${num}" data-r="${r}" transform="translate(${sx.toFixed(2)},0)">${stopBadgeSvg(num, r)}</g>`;
-    });
+      const sy = ys(si);
+      stopG += `<g class="chart-pin" data-cx="${sx.toFixed(2)}" data-cy="${sy.toFixed(2)}" transform="translate(${sx.toFixed(2)},${sy.toFixed(2)}) scale(1,1)">${pinSheet}</g>`;
+    }
 
     return `
       <defs>
@@ -478,60 +411,7 @@
     });
   }
 
-  /**
-   * Při zoomu < max: skrýt zastávky tak, aby se kruhy vodorovně nepřekrývaly; vyšší číslo má přednost.
-   * Při viewW === CHART_ZOOM_MIN_W (max. přiblížení) se nic neskrývá — překryvy povoleny.
-   */
-  function updateChartStopVisibility(svgEl, vb, rect, k) {
-    const viewX = vb.x;
-    const viewW = vb.width;
-    const nodes = svgEl.querySelectorAll(".chart-stop");
-    if (!nodes.length) return;
-    if (viewW <= CHART_ZOOM_MIN_W) {
-      nodes.forEach((g) => g.removeAttribute("display"));
-      return;
-    }
-    const viewLeft = viewX;
-    const viewRight = viewX + viewW;
-    const fudge = (CHART_STOP_THIN_GAP_PX / rect.width) * viewW;
-    const items = [...nodes]
-      .map((g) => ({
-        g,
-        cx: parseFloat(g.getAttribute("data-cx"), 10),
-        order: parseInt(g.getAttribute("data-order"), 10),
-        r: parseFloat(g.getAttribute("data-r"), 10),
-      }))
-      .filter((s) => Number.isFinite(s.cx) && Number.isFinite(s.order) && Number.isFinite(s.r));
-
-    function inViewX(s) {
-      return s.cx + k * s.r >= viewLeft && s.cx - k * s.r <= viewRight;
-    }
-
-    const inBand = items.filter(inViewX);
-    inBand.sort((a, b) => b.order - a.order);
-    const kept = [];
-    for (const s of inBand) {
-      let conflict = false;
-      for (const t of kept) {
-        if (Math.abs(s.cx - t.cx) < k * (s.r + t.r) + fudge) {
-          conflict = true;
-          break;
-        }
-      }
-      if (!conflict) kept.push(s);
-    }
-    const keepSet = new Set(kept.map((s) => s.order));
-    for (const s of items) {
-      if (!inViewX(s)) {
-        s.g.removeAttribute("display");
-        continue;
-      }
-      if (keepSet.has(s.order)) s.g.removeAttribute("display");
-      else s.g.setAttribute("display", "none");
-    }
-  }
-
-  /** Kompensuje preserveAspectRatio="none" — kulové značky a čitelná čísla při libovolném zoomu. */
+  /** Kompensuje preserveAspectRatio="none" — špendlíky zůstanou kruhové při libovolném zoomu. */
   function updateChartPinTransforms(svgEl) {
     if (!svgEl) return;
     const vb = svgEl.viewBox && svgEl.viewBox.baseVal;
@@ -539,21 +419,13 @@
     const rect = svgEl.getBoundingClientRect();
     if (rect.width < 1 || rect.height < 1) return;
     const k = (rect.height * vb.width) / (rect.width * vb.height);
-    /*
-     * Číslo: font-size v user jednotkách × scale(vb.h/rect.h) × root má dát ~stejné CSS px jako labely osy Y.
-     * (ik×zoomComp se matematicky rušilo s k a scalo číslo z ~12 na ~2 px — viz odvození sy/k.)
-     */
-    const labelTs = vb.height / rect.height;
-    svgEl.querySelectorAll(".chart-stop").forEach((g) => {
+    svgEl.querySelectorAll(".chart-pin").forEach((g) => {
       const cx = parseFloat(g.getAttribute("data-cx"), 10);
       const cy = parseFloat(g.getAttribute("data-cy"), 10);
       if (Number.isFinite(cx) && Number.isFinite(cy)) {
         g.setAttribute("transform", `translate(${cx},${cy}) scale(${k},1)`);
-        const lbl = g.querySelector(".chart-stop-label-scale");
-        if (lbl) lbl.setAttribute("transform", `scale(${labelTs},${labelTs})`);
       }
     });
-    updateChartStopVisibility(svgEl, vb, rect, k);
     const dot = svgEl.querySelector(".chart-scrubber-dot");
     if (dot) {
       const cx = parseFloat(dot.getAttribute("data-cx"), 10);
@@ -567,6 +439,7 @@
   function initChartZoom(svgEl) {
     let viewX = 0;
     let viewW = CHART_W;
+    const minW = 80;
     const maxW = CHART_W;
 
     const scrubberG = document.createElementNS("http://www.w3.org/2000/svg", "g");
@@ -591,9 +464,9 @@
     let scrubActive = false;
 
     function apply() {
-      viewW = Math.max(CHART_ZOOM_MIN_W, Math.min(maxW, viewW));
+      viewW = Math.max(minW, Math.min(maxW, viewW));
       viewX = Math.max(0, Math.min(viewX, CHART_W - viewW));
-      svgEl.setAttribute("viewBox", `${viewX} ${CHART_VB_MIN_Y} ${viewW} ${CHART_VB_OUTER_H}`);
+      svgEl.setAttribute("viewBox", `${viewX} 0 ${viewW} ${CHART_VB_H}`);
       updateXLabels();
       updateChartPinTransforms(svgEl);
       updateGridLineDash(svgEl);
@@ -736,7 +609,7 @@
           const worldMid = pinch0.viewX + ((pinch0.midX - rect.left) / rect.width) * pinch0.viewW;
           const scale = dist / pinch0.dist;
           let newW = pinch0.viewW / scale;
-          newW = Math.max(CHART_ZOOM_MIN_W, Math.min(CHART_W, newW));
+          newW = Math.max(minW, Math.min(CHART_W, newW));
           let newX = worldMid - ((midX - rect.left) / rect.width) * newW;
           newX = Math.max(0, Math.min(CHART_W - newW, newX));
           viewW = newW;
@@ -808,7 +681,7 @@
         const worldX = clientToWorldX(e.clientX, rect);
         const zoomFactor = e.deltaY > 0 ? 1.08 : 1 / 1.08;
         let newW = viewW * zoomFactor;
-        newW = Math.max(CHART_ZOOM_MIN_W, Math.min(CHART_W, newW));
+        newW = Math.max(minW, Math.min(CHART_W, newW));
         let newX = worldX - ((worldX - viewX) / viewW) * newW;
         newX = Math.max(0, Math.min(CHART_W - newW, newX));
         viewW = newW;
@@ -838,7 +711,7 @@
   document.querySelector(".scale-bar span:last-child").textContent = "50 km";
 
   const chartHost = document.querySelector(".profile-chart");
-  chartHost.innerHTML = `<svg id="elevationChart" viewBox="0 ${CHART_VB_MIN_Y} ${CHART_W} ${CHART_VB_OUTER_H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${buildChartSvg()}</svg>`;
+  chartHost.innerHTML = `<svg id="elevationChart" viewBox="0 0 ${CHART_W} ${CHART_VB_H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${buildChartSvg()}</svg>`;
   const chartSvg = document.getElementById("elevationChart");
   initChartZoom(chartSvg);
   if (chartHost && typeof ResizeObserver !== "undefined") {
