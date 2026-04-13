@@ -52,17 +52,26 @@ body {
 .map-area {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, #d4e8f7 0%, #e8f0e5 45%, #f0e8dc 100%);
-  background-image:
-    radial-gradient(ellipse 120% 80% at 30% 40%, rgba(180, 200, 180, 0.35) 0%, transparent 50%),
-    radial-gradient(ellipse 100% 60% at 70% 60%, rgba(200, 210, 220, 0.4) 0%, transparent 45%),
-    linear-gradient(180deg, #c8dce8 0%, #dde8d8 50%, #e8ddd0 100%);
+  background: linear-gradient(180deg, #c8dce8 0%, #dde8d8 50%, #e8ddd0 100%);
+}
+
+.map-area__photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  pointer-events: none;
+  z-index: 0;
 }
 
 .map-route {
   position: absolute;
   inset: 8% 4% 38% 4%;
   pointer-events: none;
+  z-index: 1;
 }
 
 .map-route svg {
@@ -75,6 +84,7 @@ body {
   position: absolute;
   top: 56px;
   right: 16px;
+  z-index: 2;
   font-size: 10px;
   color: var(--primary-60);
   text-align: right;
@@ -97,6 +107,7 @@ body {
   left: 16px;
   top: 50%;
   transform: translateY(-58%);
+  z-index: 2;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -130,33 +141,53 @@ body {
   object-fit: contain;
 }
 
-/* Figma 1757:20399 — kompas (SVG bez width/height 100 %, jinak se roztáhne přes viewport) */
+/* Figma 1757:20399 — stejné vnoření jako ButtonsAppOnMap (40×40 uprostřed 48px) */
 .map-btn__icon--compass {
   position: relative;
   width: 40px;
   height: 40px;
   display: block;
-  overflow: hidden;
+  flex-shrink: 0;
 }
 
-.map-btn__compass-symbol {
+.map-btn__compass-layer--symbol {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 26px;
-  height: 27px;
-  object-fit: contain;
+  top: 8.5%;
+  left: 10%;
+  right: 10%;
+  bottom: 10%;
 }
 
-.map-btn__compass-inner {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 16px;
-  height: 16px;
+.map-btn__compass-layer--symbol img {
+  display: block;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
+  object-position: center;
+}
+
+.map-btn__compass-layer--ring {
+  position: absolute;
+  top: 20%;
+  left: 20%;
+  right: 20%;
+  bottom: 20%;
+}
+
+.map-btn__compass-layer--ring-inner {
+  position: absolute;
+  top: 16.67%;
+  left: 16.67%;
+  right: 16.67%;
+  bottom: 16.67%;
+}
+
+.map-btn__compass-layer--ring-inner img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
 }
 
 .user-dot {
@@ -165,6 +196,7 @@ body {
   bottom: 42%;
   width: 26px;
   height: 26px;
+  z-index: 2;
 }
 
 .user-dot svg {

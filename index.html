@@ -16,6 +16,15 @@
   <body>
     <div class="screen">
       <div class="map-area" aria-hidden="true">
+        <img
+          class="map-area__photo"
+          src="assets/map-route-figma.png"
+          alt=""
+          width="1179"
+          height="2556"
+          decoding="async"
+          onerror="this.onerror=null;this.src='assets/map-route-bg.svg'"
+        />
         <div class="scale-bar">
           <span>0</span>
           <div class="scale-bar__line"></div>
@@ -32,8 +41,14 @@
           </button>
           <button type="button" class="map-btn map-btn--compass" aria-label="Kompas a poloha">
             <span class="map-btn__icon map-btn__icon--compass" aria-hidden="true">
-              <img class="map-btn__compass-symbol" src="assets/map-controls/compass-symbol.svg" alt="" decoding="async" />
-              <img class="map-btn__compass-inner" src="assets/map-controls/compass-icon.svg" alt="" decoding="async" />
+              <span class="map-btn__compass-layer map-btn__compass-layer--symbol">
+                <img src="assets/map-controls/compass-symbol.svg" alt="" decoding="async" />
+              </span>
+              <span class="map-btn__compass-layer map-btn__compass-layer--ring">
+                <span class="map-btn__compass-layer map-btn__compass-layer--ring-inner">
+                  <img src="assets/map-controls/compass-icon.svg" alt="" decoding="async" />
+                </span>
+              </span>
             </span>
           </button>
         </div>

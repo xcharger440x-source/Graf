@@ -102,10 +102,6 @@
   /** Zastávky — Figma 1849:105060: kruh primary, číslo uvnitř. Střed kruhu na y=0 = první horizontála chart-grid-line. */
   /** Jeden poloměr pro všechny zastávky (stejný vizuál jako dřív u dvojčíslí). */
   const CHART_STOP_R = 7.35;
-  /** Horní okres křivky (první horizontála / max. výška) — pod spodní hranou puntíků (střed y=0, spodek y=+R). */
-  const CHART_PAD_TOP = CHART_STOP_R;
-  /** Výška pásu mezi CHART_PAD_TOP a CHART_H pro vykreslení profilu. */
-  const CHART_INNER_H = CHART_H - CHART_PAD_TOP;
   /** Zastávky mají střed na y=0; viewBox začíná pod nulou, ať není oříznutá horní polovina kruhu. */
   const CHART_VB_MIN_Y = -CHART_STOP_R;
   const CHART_VB_OUTER_H = CHART_VB_H - CHART_VB_MIN_Y;
@@ -129,8 +125,7 @@
   function elevToY(e) {
     const lo = RD.ELEV_AXIS_MIN;
     const hi = RD.ELEV_AXIS_MAX;
-    const t = (e - lo) / (hi - lo);
-    return CHART_PAD_TOP + (1 - t) * CHART_INNER_H;
+    return CHART_H - ((e - lo) / (hi - lo)) * CHART_H;
   }
 
   function distToX(dKm) {
@@ -414,9 +409,8 @@
     }
     wayStripG = `<g class="chart-way-strip" aria-hidden="true">${wayStripG}</g>`;
 
-    /* Tři horizontály — odpovídají max/střed/min výšce; horní je na y=CHART_PAD_TOP (pod puntíky). */
-    const yMid = CHART_PAD_TOP + CHART_INNER_H / 2;
-    const yGrid = [CHART_PAD_TOP, yMid, CHART_H].map((gy) => {
+    /* Tři horizontály — stroke-dasharray doplní updateGridLineDash (px konstantní při zoomu) */
+    const yGrid = [0, CHART_H / 2, CHART_H].map((gy) => {
       return `<line class="chart-grid-line" x1="0" y1="${gy}" x2="${CHART_W}" y2="${gy}" stroke="${COL.gridH}" stroke-opacity="${COL.gridHOpacity}" stroke-width="0.75" stroke-linecap="round"/>`;
     });
 
@@ -634,9 +628,9 @@
       const sw = scrubStripWorldWidth(rect);
 
       scrubFill.setAttribute("x", String(cx - sw / 2));
-      scrubFill.setAttribute("y", String(CHART_PAD_TOP));
+      scrubFill.setAttribute("y", "0");
       scrubFill.setAttribute("width", String(sw));
-      scrubFill.setAttribute("height", String(Math.max(0, cy - CHART_PAD_TOP)));
+      scrubFill.setAttribute("height", String(cy));
 
       scrubLine.setAttribute("x1", String(cx));
       scrubLine.setAttribute("x2", String(cx));
