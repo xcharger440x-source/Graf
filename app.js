@@ -3,6 +3,8 @@
   const route = RD.generateRoute(20250326);
 
   const MAP_VB = { w: 360, h: 400 };
+  /** Posun trasy a markerů dolů (user space), aby špendlík START/CÍL (výška 66) nezasahoval nad viewBox. */
+  const MAP_ROUTE_Y_SHIFT = 52;
   const CHART_W = 1500;
   const CHART_H = 100;
   /** Pruh komunikace pod grafem (ve viewBoxu) — zoomuje s křivkou. */
@@ -23,15 +25,87 @@
     gridHOpacity: "0.26",
   };
 
-  const pinMap = `
-    <g class="stop-pin stop-pin--map">
-      <path fill="#c62828" d="M12 2C8.1 2 5 5.2 5 9.1c0 5.5 7 10.9 7 10.9s7-5.4 7-10.9C19 5.2 15.9 2 12 2zm0 12.2c-2.1 0-3.8-1.7-3.8-3.8S9.9 6.6 12 6.6s3.8 1.7 3.8 3.8-1.7 3.8-3.8 3.8z"/>
-      <circle cx="12" cy="9" r="2.2" fill="#fff"/>
+  /** Figma 1978:22201 / 22216 — velká špendlík 48×66 (#CC0000). */
+  const MAP_PIN_LARGE_D =
+    "M4.6995 38.268L24 66L43.3005 38.268H43.2675C46.2285 34.2765 48 29.352 48 24C48 10.7445 37.2555 0 24 0C10.7445 0 0 10.7445 0 24C0 29.352 1.773 34.2765 4.7325 38.268H4.6995Z";
+  /** Figma 1978:22221 — malá špendlík 32×44. */
+  const MAP_PIN_SMALL_D =
+    "M3.133 25.512L16 44L28.867 25.512H28.845C30.819 22.851 32 19.568 32 16C32 7.163 24.837 0 16 0C7.163 0 0 7.163 0 16C0 19.568 1.182 22.851 3.155 25.512H3.133Z";
+  const MAP_PIN_WHITE_CIRCLE_D =
+    "M44 22C44 9.84971 34.1503 0 22 0C9.84971 0 0 9.84971 0 22C0 34.1503 9.84971 44 22 44C34.1503 44 44 34.1503 44 22";
+
+  const MAP_CTRL_PTS = [
+    [32, 28],
+    [72, 52],
+    [120, 78],
+    [168, 118],
+    [210, 168],
+    [248, 218],
+    [278, 268],
+    [300, 318],
+  ];
+
+  function buildMapArcLength(ctrl) {
+    const pts = ctrl;
+    const n = pts.length;
+    const cum = [0];
+    let total = 0;
+    for (let i = 0; i < n - 1; i++) {
+      const dx = pts[i + 1][0] - pts[i][0];
+      const dy = pts[i + 1][1] - pts[i][1];
+      total += Math.hypot(dx, dy);
+      cum.push(total);
+    }
+    return { pts, cum, total };
+  }
+
+  /**
+   * Bod na vizuální trase v mapovém viewBoxu — podíl ujetých km (0…1) jako na ose X grafu
+   * (distKm[i]/ROUTE_KM = i/(N−1); zastávky stejně jako chart-stop na distToX(distKm[si])).
+   */
+  function mapPointAtKmFraction(arc, f) {
+    const { pts, cum, total } = arc;
+    let t = Math.max(0, Math.min(1, f));
+    if (total < 1e-9) return [pts[0][0], pts[0][1]];
+    const target = t * total;
+    let j = 0;
+    while (j < cum.length - 1 && cum[j + 1] < target) j++;
+    const segStart = cum[j];
+    const segEnd = cum[j + 1];
+    const segLen = segEnd - segStart;
+    const u = segLen < 1e-12 ? 0 : (target - segStart) / segLen;
+    const ax = pts[j][0];
+    const ay = pts[j][1];
+    const bx = pts[j + 1][0];
+    const by = pts[j + 1][1];
+    const y = ay + (by - ay) * u + MAP_ROUTE_Y_SHIFT;
+    return [ax + (bx - ax) * u, y];
+  }
+
+  function mapEndpointMarker(label) {
+    return `<g class="map-marker map-marker--endpoint">
+      <path fill="#CC0000" d="${MAP_PIN_LARGE_D}"/>
+      <path fill="#FFFFFF" d="${MAP_PIN_WHITE_CIRCLE_D}" transform="translate(2,2)"/>
+      <text x="24" y="26" text-anchor="middle" dominant-baseline="middle" fill="#484848" font-family="Roboto,sans-serif" font-size="10" font-weight="700">${label}</text>
     </g>`;
+  }
+
+  function mapStopMarker(order1Based) {
+    const n = String(order1Based);
+    return `<g class="map-marker map-marker--stop">
+      <path fill="#CC0000" d="${MAP_PIN_SMALL_D}"/>
+      <circle cx="16" cy="15" r="13" fill="#FFFFFF"/>
+      <text x="16" y="15.5" text-anchor="middle" dominant-baseline="middle" fill="#484848" font-family="Roboto,sans-serif" font-size="13" font-weight="700">${n}</text>
+    </g>`;
+  }
 
   /** Zastávky — Figma 1849:105060: kruh primary, číslo uvnitř. Střed kruhu na y=0 = první horizontála chart-grid-line. */
   /** Jeden poloměr pro všechny zastávky (stejný vizuál jako dřív u dvojčíslí). */
   const CHART_STOP_R = 7.35;
+  /** Horní okres křivky (první horizontála / max. výška) — pod spodní hranou puntíků (střed y=0, spodek y=+R). */
+  const CHART_PAD_TOP = CHART_STOP_R;
+  /** Výška pásu mezi CHART_PAD_TOP a CHART_H pro vykreslení profilu. */
+  const CHART_INNER_H = CHART_H - CHART_PAD_TOP;
   /** Zastávky mají střed na y=0; viewBox začíná pod nulou, ať není oříznutá horní polovina kruhu. */
   const CHART_VB_MIN_Y = -CHART_STOP_R;
   const CHART_VB_OUTER_H = CHART_VB_H - CHART_VB_MIN_Y;
@@ -55,7 +129,8 @@
   function elevToY(e) {
     const lo = RD.ELEV_AXIS_MIN;
     const hi = RD.ELEV_AXIS_MAX;
-    return CHART_H - ((e - lo) / (hi - lo)) * CHART_H;
+    const t = (e - lo) / (hi - lo);
+    return CHART_PAD_TOP + (1 - t) * CHART_INNER_H;
   }
 
   function distToX(dKm) {
@@ -188,47 +263,35 @@
     return { surface: SURFACE_PAVED, way: WAY_CHODNIK };
   }
 
-  function mapPointAlongRoute(t) {
-    const pts = [
-      [32, 28],
-      [72, 52],
-      [120, 78],
-      [168, 118],
-      [210, 168],
-      [248, 218],
-      [278, 268],
-      [300, 318],
-    ];
-    const seg = (pts.length - 1) * t;
-    const i = Math.min(pts.length - 2, Math.floor(seg));
-    const u = seg - i;
-    const x = pts[i][0] + (pts[i + 1][0] - pts[i][0]) * u;
-    const y = pts[i][1] + (pts[i + 1][1] - pts[i][1]) * u;
-    return [x, y];
-  }
-
   function buildMapSvg() {
-    const { distKm, elev, stops } = route;
+    const { distKm, stops } = route;
     const n = distKm.length;
+    const arc = buildMapArcLength(MAP_CTRL_PTS);
     let d = "";
     for (let i = 0; i < n; i++) {
-      const t = distKm[i] / RD.ROUTE_KM;
-      const [x, y] = mapPointAlongRoute(t);
-      d += (i === 0 ? "M" : "L") + ` ${x.toFixed(1)} ${y.toFixed(1)} `;
+      const f = distKm[i] / RD.ROUTE_KM;
+      const [x, y] = mapPointAtKmFraction(arc, f);
+      d += (i === 0 ? "M" : "L") + ` ${x.toFixed(2)} ${y.toFixed(2)} `;
     }
 
-    const bubble = mapPointAlongRoute(0.42);
-    const endPt = mapPointAlongRoute(1);
+    const [sx, sy] = mapPointAtKmFraction(arc, 0);
+    const [ex, ey] = mapPointAtKmFraction(arc, 1);
+    const [bx, by] = mapPointAtKmFraction(arc, 0.5);
 
-    let markers = "";
-    for (const si of stops) {
-      const t = distKm[si] / RD.ROUTE_KM;
-      const [mx, my] = mapPointAlongRoute(t);
-      markers += `<g transform="translate(${(mx - 12).toFixed(1)},${(my - 20).toFixed(1)})">${pinMap}</g>`;
-    }
+    let stopMarkers = "";
+    stops.forEach((si, ord) => {
+      const f = distKm[si] / RD.ROUTE_KM;
+      const [mx, my] = mapPointAtKmFraction(arc, f);
+      stopMarkers += `<g transform="translate(${(mx - 16).toFixed(2)},${(my - 44).toFixed(2)})">${mapStopMarker(
+        ord + 1
+      )}</g>`;
+    });
+
+    const kmLabel = fmtKm(RD.ROUTE_KM);
+    const timeLabel = "12:45 h";
 
     return `
-      <svg viewBox="0 0 ${MAP_VB.w} ${MAP_VB.h}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+      <svg viewBox="0 0 ${MAP_VB.w} ${MAP_VB.h}" preserveAspectRatio="xMidYMid meet" overflow="visible" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <filter id="routeGlow" x="-20%" y="-20%" width="140%" height="140%">
             <feGaussianBlur stdDeviation="1.2" result="b"/>
@@ -237,20 +300,14 @@
         </defs>
         <path d="${d.trim()}" fill="none" stroke="${COL.neutral}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" opacity="0.25"/>
         <path d="${d.trim()}" fill="none" stroke="${COL.neutral}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="14 10" filter="url(#routeGlow)"/>
-        <g transform="translate(32,28)">
-          <rect x="-14" y="-22" width="56" height="28" rx="6" fill="#fff" stroke="#c62828" stroke-width="2"/>
-          <text x="14" y="-4" text-anchor="middle" font-size="11" fill="#011e39" font-family="Roboto,sans-serif">Start</text>
-        </g>
-        <g transform="translate(${endPt[0].toFixed(1)},${endPt[1].toFixed(1)})">
-          <circle r="14" fill="#fff" stroke="#c62828" stroke-width="2"/>
-          <path d="M-6 2 L0 -8 L6 2 Z" fill="#011e39"/>
-        </g>
-        ${markers}
-        <g transform="translate(${bubble[0].toFixed(1)},${(bubble[1] - 36).toFixed(1)})">
-          <rect x="-52" y="-36" width="104" height="40" rx="6" fill="${COL.neutral}"/>
-          <text x="0" y="-18" text-anchor="middle" fill="#fff" font-size="11" font-family="Roboto,sans-serif">12:45 h</text>
-          <text x="0" y="-4" text-anchor="middle" fill="#fff" font-size="11" font-family="Roboto,sans-serif">150 km</text>
-          <polygon points="0,6 -6,-2 6,-2" fill="${COL.neutral}"/>
+        <g transform="translate(${(sx - 24).toFixed(2)},${(sy - 66).toFixed(2)})">${mapEndpointMarker("START")}</g>
+        <g transform="translate(${(ex - 24).toFixed(2)},${(ey - 66).toFixed(2)})">${mapEndpointMarker("CÍL")}</g>
+        ${stopMarkers}
+        <g transform="translate(${bx.toFixed(2)},${by.toFixed(2)})" class="map-route-bubble">
+          <rect x="-56" y="-54" width="112" height="46" rx="8" fill="${COL.neutral}"/>
+          <text x="0" y="-32" text-anchor="middle" fill="#ffffff" font-family="Roboto,sans-serif" font-size="12" font-weight="700">${kmLabel}</text>
+          <text x="0" y="-16" text-anchor="middle" fill="#ffffff" font-family="Roboto,sans-serif" font-size="11" font-weight="400">${timeLabel}</text>
+          <polygon points="0,0 -9,-8 9,-8" fill="${COL.neutral}"/>
         </g>
       </svg>`;
   }
@@ -357,8 +414,9 @@
     }
     wayStripG = `<g class="chart-way-strip" aria-hidden="true">${wayStripG}</g>`;
 
-    /* Tři horizontály — stroke-dasharray doplní updateGridLineDash (px konstantní při zoomu) */
-    const yGrid = [0, CHART_H / 2, CHART_H].map((gy) => {
+    /* Tři horizontály — odpovídají max/střed/min výšce; horní je na y=CHART_PAD_TOP (pod puntíky). */
+    const yMid = CHART_PAD_TOP + CHART_INNER_H / 2;
+    const yGrid = [CHART_PAD_TOP, yMid, CHART_H].map((gy) => {
       return `<line class="chart-grid-line" x1="0" y1="${gy}" x2="${CHART_W}" y2="${gy}" stroke="${COL.gridH}" stroke-opacity="${COL.gridHOpacity}" stroke-width="0.75" stroke-linecap="round"/>`;
     });
 
@@ -576,9 +634,9 @@
       const sw = scrubStripWorldWidth(rect);
 
       scrubFill.setAttribute("x", String(cx - sw / 2));
-      scrubFill.setAttribute("y", "0");
+      scrubFill.setAttribute("y", String(CHART_PAD_TOP));
       scrubFill.setAttribute("width", String(sw));
-      scrubFill.setAttribute("height", String(cy));
+      scrubFill.setAttribute("height", String(Math.max(0, cy - CHART_PAD_TOP)));
 
       scrubLine.setAttribute("x1", String(cx));
       scrubLine.setAttribute("x2", String(cx));

@@ -52,28 +52,39 @@ body {
 .map-area {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, #d4e8f7 0%, #e8f0e5 45%, #f0e8dc 100%);
-  background-image:
-    radial-gradient(ellipse 120% 80% at 30% 40%, rgba(180, 200, 180, 0.35) 0%, transparent 50%),
-    radial-gradient(ellipse 100% 60% at 70% 60%, rgba(200, 210, 220, 0.4) 0%, transparent 45%),
-    linear-gradient(180deg, #c8dce8 0%, #dde8d8 50%, #e8ddd0 100%);
+  background: linear-gradient(180deg, #c8dce8 0%, #dde8d8 50%, #e8ddd0 100%);
+}
+
+.map-area__photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  pointer-events: none;
+  z-index: 0;
 }
 
 .map-route {
   position: absolute;
   inset: 8% 4% 38% 4%;
   pointer-events: none;
+  z-index: 1;
 }
 
 .map-route svg {
   width: 100%;
   height: 100%;
+  overflow: visible;
 }
 
 .scale-bar {
   position: absolute;
   top: 56px;
   right: 16px;
+  z-index: 2;
   font-size: 10px;
   color: var(--primary-60);
   text-align: right;
@@ -96,6 +107,7 @@ body {
   left: 16px;
   top: 50%;
   transform: translateY(-58%);
+  z-index: 2;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -113,11 +125,49 @@ body {
   cursor: pointer;
   padding: 0;
   color: var(--primary);
+  overflow: hidden;
 }
 
-.map-btn svg {
+.map-btn__icon {
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.map-btn__icon--layers img {
   width: 24px;
   height: 24px;
+  display: block;
+  object-fit: contain;
+}
+
+/* Figma 1757:20399 — kompas (SVG bez width/height 100 %, jinak se roztáhne přes viewport) */
+.map-btn__icon--compass {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: block;
+  overflow: hidden;
+}
+
+.map-btn__compass-symbol {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 26px;
+  height: 27px;
+  object-fit: contain;
+}
+
+.map-btn__compass-inner {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
 }
 
 .user-dot {
@@ -126,6 +176,7 @@ body {
   bottom: 42%;
   width: 26px;
   height: 26px;
+  z-index: 2;
 }
 
 .user-dot svg {
@@ -133,18 +184,22 @@ body {
   height: 100%;
 }
 
-/* Bottom sheet */
+/* Bottom sheet — celková výška 335px (padding včetně) */
 .bottom-sheet {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  min-height: 314px;
-  padding: 24px 24px calc(24px + env(safe-area-inset-bottom, 0));
+  height: 335px;
+  max-height: 335px;
+  min-height: 335px;
+  box-sizing: border-box;
+  padding: 20px 24px calc(20px + env(safe-area-inset-bottom, 0));
   background: #fff;
   border-radius: 28px 28px 0 0;
   box-shadow: var(--shadow-sheet);
   touch-action: pan-y;
+  overflow: hidden;
 }
 
 /* Figma 1891:22014 — tahátko karty uprostřed horního okraje */
@@ -416,24 +471,25 @@ body {
   text-overflow: ellipsis;
 }
 
-/* Elevation profile — Figma: 20px pod statistikami (142 − 122) */
+/* Elevation profile — zmenšená výška křivky; viewBox outer 114.35 (synchronní s app.js) */
 .profile-wrap {
-  /* ~131×(114.35/107): stejné px pro oblast křivky 0…CHART_H po prodloužení viewBoxu (poloměr zastávek 7.35) */
-  --profile-chart-h: 140px;
+  --profile-chart-h: 115px;
   --profile-x-labels-h: 24px;
-  margin-top: 20px;
+  /* Spodní hrana puntíků (y=+R) v SVG → horní okraj labely „2000 m“ */
+  --chart-vb-outer-h: 114.35;
+  --chart-dot-bottom-in-vb: 14.7;
+  margin-top: 14px;
   width: 100%;
   max-width: 345px;
   height: calc(var(--profile-chart-h) + var(--profile-x-labels-h));
   position: relative;
 }
 
-/* −2px oproti výchozímu 20px při scrub = +2px „dolů“ k grafu bez prodloužení sheetu */
 .info-grid.info-grid--scrub + .profile-wrap {
-  margin-top: 18px;
+  margin-top: 12px;
 }
 
-/* Osa Y překrývá začátek grafu; začátek textu = levý okraj ikon v .info-item */
+/* Osa Y: první label zarovnán hranou nahoru se spodním okrajem černých puntíků (viz app.js CHART_PAD_TOP) */
 .profile-y-labels {
   position: absolute;
   left: 0;
@@ -450,6 +506,7 @@ body {
   color: var(--primary-60);
   padding-left: 0;
   padding-right: 0;
+  padding-top: calc(var(--chart-dot-bottom-in-vb) / var(--chart-vb-outer-h) * var(--profile-chart-h));
   box-sizing: border-box;
   pointer-events: none;
 }
@@ -521,15 +578,15 @@ body {
   align-items: center;
 }
 
-/* Čárka až k ose čáry v pruhu komunikace (SVG y=103.5 / vb=114.35; výška = .profile-chart). */
+/* Čárka až k ose čáry v pruhu komunikace (SVG; výška = .profile-chart). */
 .profile-x-labels span::before {
   content: "";
   width: 1px;
   flex-shrink: 0;
-  height: calc(8px + (3.5 / 114.35) * var(--profile-chart-h));
+  height: calc(8px + (3.5 / var(--chart-vb-outer-h)) * var(--profile-chart-h));
   background: var(--primary-60);
   margin-bottom: 2px;
-  margin-top: calc(-1 * (3.5 / 114.35) * var(--profile-chart-h));
+  margin-top: calc(-1 * (3.5 / var(--chart-vb-outer-h)) * var(--profile-chart-h));
 }
 
 .home-indicator {

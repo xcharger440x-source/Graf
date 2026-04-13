@@ -25,18 +25,16 @@
         <div class="map-route"></div>
 
         <div class="map-controls">
-          <button type="button" class="map-btn" aria-label="Vrstvy mapy">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <path d="M12 3L3 8l9 5 9-5-9-5z" />
-              <path d="M3 12l9 5 9-5" />
-              <path d="M3 16l9 5 9-5" />
-            </svg>
+          <button type="button" class="map-btn map-btn--layers" aria-label="Vrstvy mapy">
+            <span class="map-btn__icon map-btn__icon--layers" aria-hidden="true">
+              <img src="assets/map-controls/layers.svg" width="24" height="24" alt="" decoding="async" />
+            </span>
           </button>
-          <button type="button" class="map-btn" aria-label="Kompas a poloha">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <circle cx="12" cy="12" r="9" />
-              <polygon points="12,6 14,14 12,12 10,14" fill="currentColor" stroke="none" />
-            </svg>
+          <button type="button" class="map-btn map-btn--compass" aria-label="Kompas a poloha">
+            <span class="map-btn__icon map-btn__icon--compass" aria-hidden="true">
+              <img class="map-btn__compass-symbol" src="assets/map-controls/compass-symbol.svg" alt="" decoding="async" />
+              <img class="map-btn__compass-inner" src="assets/map-controls/compass-icon.svg" alt="" decoding="async" />
+            </span>
           </button>
         </div>
 
